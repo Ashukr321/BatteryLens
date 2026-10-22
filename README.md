@@ -22,19 +22,22 @@ BatteryLens opens a local dashboard at `http://127.0.0.1:4545` that shows how yo
 
 ## Install & run
 
-No install needed. Run it with **npx** (Node.js 20+):
+Needs Node.js 20+. Install **globally** (note the `-g`):
 
 ```bash
-npx batterylens            # open the dashboard
-npx batterylens install    # record history in the background (starts at login)
+npm i -g batterylens
+batterylens                # open the dashboard
+batterylens install        # record history in the background (starts at login)
 ```
 
-> ⚠️ Don't use `npm i batterylens`. That only adds the package to the current folder's `node_modules`, so the `batterylens` command won't be found. Use `npx batterylens`, or install globally:
->
-> ```bash
-> npm i -g batterylens
-> batterylens
-> ```
+Or run it without installing:
+
+```bash
+npx batterylens
+npx batterylens install
+```
+
+> ⚠️ Use `npm i -g batterylens`, not `npm i batterylens`. Without `-g` the package only goes into the current folder's `node_modules`, so the `batterylens` command won't be found.
 
 A single run shows the live state plus whatever history the OS already kept (Windows ~3 days, macOS `pmset` log). For full 24h / 30-day history, screen-on time, app usage and alerts, run `install` once.
 

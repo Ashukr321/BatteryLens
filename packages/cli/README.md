@@ -4,18 +4,25 @@
 
 ## Install & run
 
-No install needed. Run it with **npx** (comes with Node.js 20+):
+Needs Node.js 20+. Install **globally** (note the `-g`), then run `batterylens` from any terminal:
+
+```bash
+npm i -g batterylens
+batterylens
+```
+
+Or run it without installing:
 
 ```bash
 npx batterylens
 ```
 
-> ⚠️ Don't use `npm i batterylens`. That only adds the package to the current folder's `node_modules`, so the `batterylens` command won't be found. Use `npx batterylens`, or install globally with `npm i -g batterylens` (see below).
+> ⚠️ Use `npm i -g batterylens`, not `npm i batterylens`. Without `-g` the package only goes into the current folder's `node_modules`, so the `batterylens` command won't be found.
 
 To keep recording battery history in the background (starts at login, no admin needed):
 
 ```bash
-npx batterylens install
+batterylens install        # or: npx batterylens install
 ```
 
 It opens a local dashboard at `http://127.0.0.1:4545` showing:
@@ -35,13 +42,6 @@ It opens a local dashboard at `http://127.0.0.1:4545` showing:
 - **Installable app**: Chrome/Edge can install the dashboard as a desktop app
 
 **100% local. No cloud, no telemetry.** Data lives in `~/.batterylens` and the server listens on `127.0.0.1` only.
-
-Prefer a permanent command? Install it **globally** (note the `-g`), then run `batterylens` from any terminal:
-
-```bash
-npm i -g batterylens
-batterylens
-```
 
 ## Commands
 
