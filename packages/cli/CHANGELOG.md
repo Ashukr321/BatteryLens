@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.2.1 — 2026-10-22
+
+### Changed
+- README: `npm i -g batterylens` is now the main install command (plain `npm i` doesn't put `batterylens` on PATH); `npx batterylens` shown as the no-install option.
+- Package marked `preferGlobal`.
+- `npm publish` now stops early with a clear message if the version was already published.
+
 ## 0.2.0 — 2026-10-22
 
 ### Added
