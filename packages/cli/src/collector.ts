@@ -1,7 +1,9 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import { getAdapter, type Adapter } from './adapters/index.js';
-import { BASE, appendSamples, dataStats, log, pruneIfNewDay, readDevice, saveDevice } from './store.js';
+import { getAdapter, type Adapter, type Sample } from './adapters/index.js';
+import { BASE, appendSamples, dataStats, dayKey, latestSample, log, pruneIfNewDay, readConfig, readDevice, readSamples, saveDevice, writeConfig } from './store.js';
+import { DEFAULT_ALERTS, alertsFor, notify, parseAlerts } from './alerts.js';
+import { weeklySummary } from './analytics.js';
 
 const LOCK = path.join(BASE, 'collector.lock');
 const DEVICE_REFRESH = 6 * 3_600_000;
@@ -40,12 +42,18 @@ export async function startCollector(adapter = getAdapter()): Promise<(() => voi
   await bootstrap(adapter);
   pruneIfNewDay();
   let lastDevice = Date.now();
+  // The last stored sample, so a wake after sleep (or a restart) still sees the drain across the gap.
+  let prev = latestSample();
 
   const tick = async () => {
     try {
       pruneIfNewDay(); // catches midnight even if the laptop slept through it
       const s = await adapter.sample();
-      if (s) appendSamples([s]);
+      if (s) {
+        appendSamples([s]);
+        checkAlerts(prev, s);
+        prev = s;
+      }
       if (Date.now() - lastDevice > DEVICE_REFRESH) {
         lastDevice = Date.now();
         const d = await adapter.device();
@@ -65,4 +73,16 @@ export async function startCollector(adapter = getAdapter()): Promise<(() => voi
   };
   process.once('exit', stop);
   return stop;
+}
+
+function checkAlerts(prev: Sample | null, cur: Sample) {
+  // A hand-edited config with bad values falls back to defaults instead of silencing alerts forever.
+  const cfg = (() => { try { return parseAlerts(readConfig().alerts); } catch { return DEFAULT_ALERTS; } })();
+  for (const msg of alertsFor(prev, cur, cfg)) notify('BatteryLens', msg);
+
+  const now = new Date();
+  if (cfg.enabled && cfg.weekly && now.getDay() === 1 && readConfig().lastWeekly !== dayKey(now)) {
+    writeConfig({ lastWeekly: dayKey(now) });
+    notify('BatteryLens: your week', weeklySummary(readSamples(now.getTime() - 7 * 86_400_000), readDevice()?.battery.designCapacity ?? 0));
+  }
 }

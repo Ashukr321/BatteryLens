@@ -50,6 +50,7 @@ export interface Health {
   fullChargeCapacity: number | null;
   designCapacity: number;
   series: { key: string; fullChargeCapacity: number; designCapacity: number; health: number | null }[];
+  temperature: { key: string; avg: number; max: number }[];
   forecast: { slopePerMonth: number; reach80: string | null; note: string | null } | null;
 }
 
@@ -62,6 +63,33 @@ export interface Cycles {
   equivalentCycles: number;
   fullChargesPerDay: { day: string; count: number }[];
   sessions: { start: number; end: number; startPercent: number; endPercent: number; minutes: number; ratePerHour: number }[];
+}
+
+export interface Habits {
+  score: number | null;
+  fullWhilePluggedPct: number | null;
+  deepDischarges: number;
+  hotPct: number | null;
+  tips: string[];
+}
+
+export interface SleepDrain {
+  avgPerHour: number | null;
+  abnormal: number;
+  threshold: number;
+  events: { start: number; end: number; hours: number; lost: number; ratePerHour: number; abnormal: boolean }[];
+}
+
+export interface Anomalies {
+  anomalies: { type: "capacity" | "drain"; day: string; value: number; baseline: number }[];
+}
+
+export interface AlertConfig {
+  enabled: boolean;
+  high: number;
+  low: number;
+  hotC: number;
+  weekly: boolean;
 }
 
 export interface DataStats {
@@ -99,6 +127,19 @@ export function useApi<T>(path: string | null, refreshMs?: number) {
   }, [path, refreshMs, tick]);
 
   return { data, error, loading: !data && !error, reload: () => setTick((t) => t + 1) };
+}
+
+/** Live sample pushed by the server every 5s over SSE; EventSource reconnects on its own. */
+export function useLive() {
+  const [data, setData] = useState<Sample | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  useEffect(() => {
+    const es = new EventSource("/api/live/stream");
+    es.onmessage = (e) => (setData(JSON.parse(e.data)), setError(null));
+    es.onerror = () => setError("live stream disconnected");
+    return () => es.close();
+  }, []);
+  return { data, error };
 }
 
 /** Session token injected by the CLI server into the HTML; required for destructive calls. */

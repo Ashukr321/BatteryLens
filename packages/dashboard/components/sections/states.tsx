@@ -1,22 +1,27 @@
+"use client";
+
 import { Skeleton } from "@/components/ui/skeleton";
+import { useT } from "@/lib/i18n";
 
 /** Loading skeleton, or an error line when the local API is unreachable. */
 export function StatusLine({ error }: { error: string | null }) {
+  const t = useT();
   if (error)
     return (
       <div className="rounded-xl border border-destructive/40 p-4 text-sm text-destructive">
-        Couldn&apos;t reach the BatteryLens server ({error}). Is <code>npx batterylens</code> still running?
+        {t("Couldn't reach the BatteryLens server ({error}). Is npx batterylens still running?", { error })}
       </div>
     );
   return <Skeleton className="h-48 w-full rounded-xl" />;
 }
 
 export function EmptyState() {
+  const t = useT();
   return (
     <div className="flex h-48 flex-col items-center justify-center gap-1 text-center text-sm text-muted-foreground">
-      <p>No data for this period yet.</p>
+      <p>{t("No data for this period yet.")}</p>
       <p>
-        Run <code className="rounded bg-muted px-1">npx batterylens install</code> to record history in the background.
+        {t("Run this to record history in the background:")} <code className="rounded bg-muted px-1">npx batterylens install</code>
       </p>
     </div>
   );

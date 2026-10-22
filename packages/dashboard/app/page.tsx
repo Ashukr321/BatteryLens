@@ -1,4 +1,4 @@
-import { BatteryLevelChart, DeviceCard, HealthGauge, LiveCard, TodayDonut } from "@/components/sections/overview";
+import { AnomaliesCard, BatteryLevelChart, DeviceCard, HealthGauge, LiveCard, TodayDonut } from "@/components/sections/overview";
 
 export default function OverviewPage() {
   return (
@@ -14,6 +14,7 @@ export default function OverviewPage() {
         <BatteryLevelChart />
         <DeviceCard />
       </div>
+      <AnomaliesCard />
     </div>
   );
 }

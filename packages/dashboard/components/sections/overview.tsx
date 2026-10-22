@@ -1,34 +1,39 @@
 "use client";
 
+import { useState } from "react";
 import { Area, AreaChart, CartesianGrid, Cell, Pie, PieChart, PolarAngleAxis, RadialBar, RadialBarChart, ReferenceArea, XAxis, YAxis } from "recharts";
-import { BatteryCharging, BatteryFull, Calendar, Cpu, Laptop, PlugZap, Thermometer, User, Zap } from "lucide-react";
+import { BatteryCharging, BatteryFull, Calendar, CircleCheck, Cpu, Laptop, PlugZap, Thermometer, TrendingDown, TriangleAlert, User, Zap } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart";
 import { EmptyState, Gradient, StatusLine } from "@/components/sections/states";
-import { fmtDate, fmtHours, fmtTime, healthColor, maskSerial, useApi, type DeviceInfo, type Health, type Sample, type Usage } from "@/lib/api";
+import { fmtDate, fmtHours, fmtTime, healthColor, maskSerial, useApi, useLive, type Anomalies, type DeviceInfo, type Health, type Sample, type Usage } from "@/lib/api";
+import { useT } from "@/lib/i18n";
 
 const DAY = 86_400_000;
+/** Below this, a charger is likely slower than the laptop's stock adapter. */
+const SLOW_CHARGER_W = 30;
 
 export function DeviceCard({ mask = false }: { mask?: boolean }) {
+  const t = useT();
   const { data: d, error } = useApi<DeviceInfo>("/api/device");
   if (!d) return <StatusLine error={error} />;
   const b = d.battery;
   const rows: [React.ElementType, string, string][] = [
-    [User, "User", d.userName],
-    [Laptop, "Laptop", `${d.laptopManufacturer} ${d.laptopModel}`],
-    [Cpu, "OS", d.os],
-    [BatteryFull, "Battery", [b.manufacturer, b.model].filter(Boolean).join(" · ") || "—"],
-    [BatteryFull, "Serial", mask ? maskSerial(b.serial) : (b.serial ?? "—")],
-    [BatteryFull, "Chemistry", b.chemistry ?? "—"],
-    [Calendar, b.manufactureDate ? "Manufactured" : "First seen", fmtDate(b.manufactureDate || b.firstSeenDate)],
-    [Zap, "Design capacity", `${b.designCapacity.toLocaleString()} ${b.capacityUnit}`],
+    [User, t("User"), d.userName],
+    [Laptop, t("Laptop"), `${d.laptopManufacturer} ${d.laptopModel}`],
+    [Cpu, t("OS"), d.os],
+    [BatteryFull, t("Battery"), [b.manufacturer, b.model].filter(Boolean).join(" · ") || "—"],
+    [BatteryFull, t("Serial"), mask ? maskSerial(b.serial) : (b.serial ?? "—")],
+    [BatteryFull, t("Chemistry"), b.chemistry ?? "—"],
+    [Calendar, b.manufactureDate ? t("Manufactured") : t("First seen"), fmtDate(b.manufactureDate || b.firstSeenDate)],
+    [Zap, t("Design capacity"), `${b.designCapacity.toLocaleString()} ${b.capacityUnit}`],
   ];
   return (
     <Card className="@container/card">
       <CardHeader>
         <CardTitle>{d.computerName}</CardTitle>
-        <CardDescription>Device &amp; battery</CardDescription>
+        <CardDescription>{t("Device & battery")}</CardDescription>
       </CardHeader>
       <CardContent className="grid gap-2 text-sm">
         {rows.map(([Icon, label, value]) => (
@@ -44,17 +49,18 @@ export function DeviceCard({ mask = false }: { mask?: boolean }) {
 }
 
 export function HealthGauge() {
+  const t = useT();
   const { data: h, error } = useApi<Health>("/api/health?range=30d");
   if (!h) return <StatusLine error={error} />;
   const value = h.current ?? 0;
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Battery health</CardTitle>
-        <CardDescription>Full charge vs design capacity</CardDescription>
+        <CardTitle>{t("Battery health")}</CardTitle>
+        <CardDescription>{t("Full charge vs design capacity")}</CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col items-center">
-        <ChartContainer config={{ health: { label: "Health" } }} className="aspect-square h-48">
+        <ChartContainer config={{ health: { label: t("Health") } }} className="aspect-square h-48">
           <RadialBarChart data={[{ health: value }]} startAngle={90} endAngle={-270} innerRadius="75%" outerRadius="100%">
             <PolarAngleAxis type="number" domain={[0, 100]} tick={false} />
             <RadialBar dataKey="health" background cornerRadius={8} fill={healthColor(h.current)} isAnimationActive={false} />
@@ -72,14 +78,16 @@ export function HealthGauge() {
 }
 
 export function LiveCard() {
-  const { data: s, error } = useApi<Sample>("/api/live", 5_000);
+  const t = useT();
+  const { data: s, error } = useLive();
   if (!s) return <StatusLine error={error} />;
-  const state = s.charging ? "Charging" : s.acConnected ? "Plugged in" : "On battery";
+  const state = s.charging ? t("Charging") : s.acConnected ? t("Plugged in") : t("On battery");
+  const slowCharger = s.acConnected && s.adapterWatts != null && s.adapterWatts < SLOW_CHARGER_W;
   return (
     <Card className="@container/card">
       <CardHeader>
-        <CardTitle>Live</CardTitle>
-        <CardDescription>Updated {fmtTime(s.ts)}</CardDescription>
+        <CardTitle>{t("Live")}</CardTitle>
+        <CardDescription>{t("Updated {time}", { time: fmtTime(s.ts) })}</CardDescription>
       </CardHeader>
       <CardContent className="grid gap-4">
         <div className="flex flex-wrap items-end gap-3">
@@ -92,10 +100,15 @@ export function LiveCard() {
           <div className="h-full rounded-full transition-all" style={{ width: `${s.percent}%`, background: s.percent < 20 ? "var(--bad)" : "var(--batt)" }} />
         </div>
         <div className="grid grid-cols-2 gap-2 text-sm @[20rem]/card:grid-cols-3">
-          <Stat icon={Thermometer} label="Temp" value={s.temperatureC != null ? `${s.temperatureC.toFixed(1)}°C` : "—"} />
-          <Stat icon={Zap} label="Voltage" value={s.voltageMv ? `${(s.voltageMv / 1000).toFixed(2)} V` : "—"} />
-          <Stat icon={PlugZap} label="Adapter" value={s.adapterWatts ? `${s.adapterWatts} W` : "—"} />
+          <Stat icon={Thermometer} label={t("Temp")} value={s.temperatureC != null ? `${s.temperatureC.toFixed(1)}°C` : "—"} />
+          <Stat icon={Zap} label={t("Voltage")} value={s.voltageMv ? `${(s.voltageMv / 1000).toFixed(2)} V` : "—"} />
+          <Stat icon={PlugZap} label={t("Adapter")} value={s.adapterWatts ? `${s.adapterWatts} W` : "—"} />
         </div>
+        {slowCharger && (
+          <p className="flex items-center gap-1.5 text-sm text-[var(--warn)]">
+            <TriangleAlert className="size-4" /> {t("Low-wattage charger ({w} W). Charging may be slow.", { w: s.adapterWatts! })}
+          </p>
+        )}
       </CardContent>
     </Card>
   );
@@ -112,13 +125,19 @@ function Stat({ icon: Icon, label, value }: { icon: React.ElementType; label: st
   );
 }
 
-const levelConfig = { percent: { label: "Battery %", color: "var(--batt)" } } satisfies ChartConfig;
+/** [from, to] for a local day ("YYYY-MM-DD"), or the last 24h. Rounded to the minute so the fetch path stays stable. */
+function window24h(day?: string): [number, number] {
+  const now = Math.floor(Date.now() / 60_000) * 60_000;
+  if (!day) return [now - DAY, now];
+  const [y, m, d] = day.split("-").map(Number);
+  return [new Date(y, m - 1, d).getTime(), Math.min(now, new Date(y, m - 1, d + 1).getTime() - 1)];
+}
 
-/** 24h battery level, with charger-connected stretches shaded. */
-export function BatteryLevelChart() {
-  // Rounded to the minute so the path (and fetch) stays stable across renders.
-  const from = Math.floor((Date.now() - DAY) / 60_000) * 60_000;
-  const { data, error } = useApi<Sample[]>(`/api/samples?from=${from}`);
+/** Battery level over the last 24h (or one `day`), with charger-connected stretches shaded. */
+export function BatteryLevelChart({ day, bare = false }: { day?: string; bare?: boolean }) {
+  const t = useT();
+  const [[from, to]] = useState(() => window24h(day));
+  const { data, error } = useApi<Sample[]>(`/api/samples?from=${from}&to=${to}`);
   if (!data) return <StatusLine error={error} />;
 
   // A null point at each sleep gap breaks the line instead of drawing across the gap.
@@ -135,46 +154,48 @@ export function BatteryLevelChart() {
     else if (s.acConnected) plugged.push({ x1: s.ts, x2: s.ts });
   }
 
+  const chart =
+    data.length === 0 ? (
+      <EmptyState />
+    ) : (
+      <ChartContainer config={{ percent: { label: t("Battery %"), color: "var(--batt)" } } satisfies ChartConfig} className="h-56 w-full @3xl:h-72">
+        <AreaChart data={points} margin={{ left: -20, right: 8, top: 8 }}>
+          <defs>
+            <Gradient id={`fill-level-${day ?? "24h"}`} color="var(--color-percent)" />
+          </defs>
+          <CartesianGrid vertical={false} strokeDasharray="3 3" />
+          <XAxis dataKey="ts" type="number" scale="time" domain={[from, to]} tickFormatter={fmtTime} tickLine={false} axisLine={false} minTickGap={40} />
+          <YAxis domain={[0, 100]} tickLine={false} axisLine={false} tickFormatter={(v) => `${v}%`} />
+          {plugged.map((p) => (
+            <ReferenceArea key={p.x1} x1={p.x1} x2={p.x2} fill="var(--plug)" fillOpacity={0.12} ifOverflow="hidden" />
+          ))}
+          <ChartTooltip content={<ChartTooltipContent labelFormatter={(_, p) => fmtTime(p?.[0]?.payload?.ts)} />} />
+          <Area dataKey="percent" type="monotone" stroke="var(--color-percent)" fill={`url(#fill-level-${day ?? "24h"})`} strokeWidth={2} isAnimationActive={false} />
+        </AreaChart>
+      </ChartContainer>
+    );
+  if (bare) return chart;
+
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Battery level — last 24h</CardTitle>
-        <CardDescription>Shaded = charger connected</CardDescription>
+        <CardTitle>{t("Battery level — last 24h")}</CardTitle>
+        <CardDescription>{t("Shaded = charger connected")}</CardDescription>
       </CardHeader>
-      <CardContent>
-        {data.length === 0 ? (
-          <EmptyState />
-        ) : (
-          <ChartContainer config={levelConfig} className="h-56 w-full @3xl:h-72">
-            <AreaChart data={points} margin={{ left: -20, right: 8, top: 8 }}>
-              <defs>
-                <Gradient id="fill-level" color="var(--color-percent)" />
-              </defs>
-              <CartesianGrid vertical={false} strokeDasharray="3 3" />
-              <XAxis dataKey="ts" type="number" scale="time" domain={[from, Date.now()]} tickFormatter={fmtTime} tickLine={false} axisLine={false} minTickGap={40} />
-              <YAxis domain={[0, 100]} tickLine={false} axisLine={false} tickFormatter={(v) => `${v}%`} />
-              {plugged.map((p) => (
-                <ReferenceArea key={p.x1} x1={p.x1} x2={p.x2} fill="var(--plug)" fillOpacity={0.12} ifOverflow="hidden" />
-              ))}
-              <ChartTooltip content={<ChartTooltipContent labelFormatter={(_, p) => fmtTime(p?.[0]?.payload?.ts)} />} />
-              <Area dataKey="percent" type="monotone" stroke="var(--color-percent)" fill="url(#fill-level)" strokeWidth={2} isAnimationActive={false} />
-            </AreaChart>
-          </ChartContainer>
-        )}
-      </CardContent>
+      <CardContent>{chart}</CardContent>
     </Card>
   );
 }
 
-const todayConfig = {
-  plugged: { label: "On charger", color: "var(--plug)" },
-  battery: { label: "On battery", color: "var(--batt)" },
-} satisfies ChartConfig;
-
 /** Donut of today's charger vs battery time. */
 export function TodayDonut() {
+  const t = useT();
   const { data: u, error } = useApi<Usage>("/api/usage?range=24h");
   if (!u) return <StatusLine error={error} />;
+  const config = {
+    plugged: { label: t("On charger"), color: "var(--plug)" },
+    battery: { label: t("On battery"), color: "var(--batt)" },
+  } satisfies ChartConfig;
   const parts = [
     { key: "plugged", value: u.totals.plugged },
     { key: "battery", value: u.totals.battery },
@@ -183,16 +204,16 @@ export function TodayDonut() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Last 24h</CardTitle>
-        <CardDescription>Charger vs battery time</CardDescription>
+        <CardTitle>{t("Last 24h")}</CardTitle>
+        <CardDescription>{t("Charger vs battery time")}</CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col items-center gap-2">
         {total === 0 ? (
           <EmptyState />
         ) : (
-          <ChartContainer config={todayConfig} className="aspect-square h-44">
+          <ChartContainer config={config} className="aspect-square h-44">
             <PieChart>
-              <ChartTooltip content={<ChartTooltipContent nameKey="key" formatter={(v, n) => `${todayConfig[n as keyof typeof todayConfig].label}: ${fmtHours(Number(v ?? 0))}`} />} />
+              <ChartTooltip content={<ChartTooltipContent nameKey="key" formatter={(v, n) => `${config[n as keyof typeof config].label}: ${fmtHours(Number(v ?? 0))}`} />} />
               <Pie data={parts} dataKey="value" nameKey="key" innerRadius="60%" strokeWidth={2} isAnimationActive={false}>
                 {parts.map((p) => (
                   <Cell key={p.key} fill={`var(--color-${p.key})`} />
@@ -202,9 +223,45 @@ export function TodayDonut() {
           </ChartContainer>
         )}
         <div className="flex gap-4 text-sm">
-          <Legend color="var(--plug)" label={`Charger ${fmtHours(u.totals.plugged)}`} />
-          <Legend color="var(--batt)" label={`Battery ${fmtHours(u.totals.battery)}`} />
+          <Legend color="var(--plug)" label={`${t("Charger")} ${fmtHours(u.totals.plugged)}`} />
+          <Legend color="var(--batt)" label={`${t("Battery")} ${fmtHours(u.totals.battery)}`} />
         </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+/** Sudden capacity drops and days that drained much faster than usual (last 30 days). */
+export function AnomaliesCard() {
+  const t = useT();
+  const { data, error } = useApi<Anomalies>("/api/anomalies?range=30d");
+  if (!data) return <StatusLine error={error} />;
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>{t("Anomalies")}</CardTitle>
+        <CardDescription>{t("Last 30 days · sudden capacity drops and unusually fast drain")}</CardDescription>
+      </CardHeader>
+      <CardContent>
+        {data.anomalies.length === 0 ? (
+          <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
+            <CircleCheck className="size-4 text-[var(--batt)]" /> {t("Nothing unusual detected.")}
+          </p>
+        ) : (
+          <ul className="grid gap-2 text-sm">
+            {data.anomalies.map((a) => (
+              <li key={a.type + a.day} className="flex items-start gap-2 rounded-lg bg-[var(--warn)]/10 p-2">
+                {a.type === "capacity" ? <TrendingDown className="mt-0.5 size-4 shrink-0 text-[var(--bad)]" /> : <TriangleAlert className="mt-0.5 size-4 shrink-0 text-[var(--warn)]" />}
+                <span>
+                  <b>{fmtDate(a.day + "T00:00")}</b> ·{" "}
+                  {a.type === "capacity"
+                    ? t("Full-charge capacity dropped from {from} to {to} in a day.", { from: a.baseline.toLocaleString(), to: a.value.toLocaleString() })
+                    : t("Drained {rate}%/h in use, about {x}× the usual {usual}%/h. Check for a busy app.", { rate: a.value, usual: a.baseline, x: (a.value / a.baseline).toFixed(1) })}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
       </CardContent>
     </Card>
   );

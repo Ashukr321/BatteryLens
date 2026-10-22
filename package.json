@@ -7,6 +7,7 @@
     "dev:cli": "npm run dev -w batterylens",
     "build": "npm run build -w dashboard && npm run build -w batterylens",
     "test": "npm test -w batterylens",
-    "start": "node packages/cli/dist/bin.js"
+    "start": "node packages/cli/dist/bin.js",
+    "lint": "npm run lint -w dashboard"
   }
 }

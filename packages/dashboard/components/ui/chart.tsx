@@ -271,15 +271,32 @@ function ChartTooltipContent({
 
 const ChartLegend = RechartsPrimitive.Legend
 
+/** Legend click-to-hide state: spread `legend` into ChartLegendContent and pass `hide={isHidden(key)}` to each series. */
+function useSeriesToggle() {
+  const [hidden, setHidden] = React.useState<string[]>([])
+  return {
+    isHidden: (key: string) => hidden.includes(key),
+    legend: {
+      hiddenSeries: hidden,
+      onSeriesToggle: (key: string) => setHidden((h) => (h.includes(key) ? h.filter((k) => k !== key) : [...h, key])),
+    },
+  }
+}
+
 function ChartLegendContent({
   className,
   hideIcon = false,
   payload,
   verticalAlign = "bottom",
   nameKey,
+  hiddenSeries,
+  onSeriesToggle,
 }: React.ComponentProps<"div"> & {
   hideIcon?: boolean
   nameKey?: string
+  /** With onSeriesToggle, items become buttons that show/hide their series. */
+  hiddenSeries?: string[]
+  onSeriesToggle?: (key: string) => void
 } & RechartsPrimitive.DefaultLegendContentProps) {
   const { config } = useChart()
 
@@ -300,12 +317,17 @@ function ChartLegendContent({
         .map((item, index) => {
           const key = `${nameKey ?? item.dataKey ?? "value"}`
           const itemConfig = getPayloadConfigFromPayload(config, item, key)
+          const off = hiddenSeries?.includes(key)
+          const Item = onSeriesToggle ? "button" : "div"
 
           return (
-            <div
+            <Item
               key={index}
+              {...(onSeriesToggle && { type: "button" as const, "aria-pressed": !off, onClick: () => onSeriesToggle(key) })}
               className={cn(
-                "flex items-center gap-1.5 [&>svg]:h-3 [&>svg]:w-3 [&>svg]:text-muted-foreground"
+                "flex items-center gap-1.5 [&>svg]:h-3 [&>svg]:w-3 [&>svg]:text-muted-foreground",
+                onSeriesToggle && "cursor-pointer rounded-sm hover:text-foreground",
+                off && "line-through opacity-40"
               )}
             >
               {itemConfig?.icon && !hideIcon ? (
@@ -319,7 +341,7 @@ function ChartLegendContent({
                 />
               )}
               {itemConfig?.label}
-            </div>
+            </Item>
           )
         })}
     </div>
@@ -369,4 +391,5 @@ export {
   ChartLegend,
   ChartLegendContent,
   ChartStyle,
+  useSeriesToggle,
 }

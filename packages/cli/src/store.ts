@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import type { DeviceInfo, Sample } from './adapters/types.js';
+import type { AlertConfig } from './alerts.js';
 
 export const KEEP_DAYS = 30;
 export const BASE = process.env.BATTERYLENS_HOME || path.join(os.homedir(), '.batterylens');
@@ -16,7 +17,7 @@ const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDat
 
 // ---------- config / device ----------
 
-export interface Config { port?: number; lastPruneDate?: string; installed?: boolean }
+export interface Config { port?: number; lastPruneDate?: string; installed?: boolean; alerts?: Partial<AlertConfig>; lastWeekly?: string }
 
 function readJson<T>(file: string, fallback: T): T {
   try { return JSON.parse(fs.readFileSync(path.join(BASE, file), 'utf8')); } catch { return fallback; }

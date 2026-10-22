@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { ThemeProvider } from "next-themes";
 import { AppSidebar, PageBar } from "@/components/app-sidebar";
@@ -20,7 +20,11 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "BatteryLens",
   description: "One command. Full battery story. 100% local, no telemetry.",
+  manifest: "/manifest.webmanifest",
+  icons: { icon: "/icon.svg", apple: "/icon-192.png" },
 };
+
+export const viewport: Viewport = { themeColor: "#16a34a" };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (

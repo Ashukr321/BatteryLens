@@ -2,16 +2,19 @@ import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
+import os from 'node:os';
 import { fileURLToPath } from 'node:url';
 import type { Adapter } from './adapters/types.js';
-import { clearAll, dataStats, latestSample, readDevice, readSamples } from './store.js';
-import { cycles, health, resolveRange, usage } from './analytics.js';
+import { clearAll, dataStats, latestSample, readConfig, readDevice, readSamples, writeConfig } from './store.js';
+import { anomalies, cycles, habits, health, resolveRange, sleepDrain, usage } from './analytics.js';
+import { parseAlerts } from './alerts.js';
+import { renderPdf } from './pdf.js';
 
 const STATIC = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'dashboard');
 const DEV = !!process.env.BATTERYLENS_DEV;
 const MIME: Record<string, string> = {
   '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json',
-  '.svg': 'image/svg+xml', '.png': 'image/png', '.ico': 'image/x-icon', '.woff2': 'font/woff2', '.txt': 'text/plain',
+  '.svg': 'image/svg+xml', '.png': 'image/png', '.ico': 'image/x-icon', '.woff2': 'font/woff2', '.txt': 'text/plain', '.webmanifest': 'application/manifest+json',
 };
 
 const CSV_COLS = ['ts', 'percent', 'acConnected', 'charging', 'fullChargeCapacity', 'cycleCount', 'temperatureC', 'voltageMv', 'adapterWatts'] as const;
@@ -25,25 +28,57 @@ export function createServer(adapter: Adapter, port: number) {
   const token = DEV ? 'dev' : crypto.randomUUID();
   const origins = new Set([`http://127.0.0.1:${port}`, `http://localhost:${port}`, ...(DEV ? ['http://localhost:3000'] : [])]);
 
+  const live = async () => (await adapter.sample().catch(() => null)) ?? latestSample();
+
+  /** Write endpoints: same-origin POST carrying the page's session token. Returns the body, or an error response. */
+  const guard = async (req: http.IncomingMessage): Promise<[number, unknown] | { body: any }> => {
+    if (req.method !== 'POST') return [405, { error: 'POST only' }];
+    if (!origins.has(req.headers.origin ?? '')) return [403, { error: 'Bad origin' }];
+    const body = await readBody(req);
+    if (body?.token !== token) return [403, { error: 'Bad token' }];
+    return { body };
+  };
+
   const api = async (url: URL, req: http.IncomingMessage): Promise<[number, unknown, string?]> => {
     const q = url.searchParams;
+    const at = q.get('month') ?? q.get('day') ?? undefined;
     const device = readDevice();
     const design = device?.battery.designCapacity ?? 0;
     switch (url.pathname) {
       case '/api/device': return [200, device];
-      case '/api/live': return [200, (await adapter.sample().catch(() => null)) ?? latestSample()];
+      case '/api/live': return [200, await live()];
       case '/api/usage': {
-        const r = resolveRange(q.get('range') ?? '24h', q.get('month') ?? undefined);
+        const r = resolveRange(q.get('range') ?? '24h', at);
         // Include a few minutes before "from" so the first gap is attributed.
         return [200, { range: r.range, ...usage(readSamples(r.from - 5 * 60_000, r.to), r.from, r.to) }];
       }
       case '/api/health': {
-        const r = resolveRange(q.get('range') ?? '30d', q.get('month') ?? undefined);
+        const r = resolveRange(q.get('range') ?? '30d', at);
         return [200, { range: r.range, ...health(readSamples(r.from, r.to), design, r.range === '24h') }];
       }
       case '/api/cycles': {
-        const r = resolveRange(q.get('range') ?? '30d', q.get('month') ?? undefined);
+        const r = resolveRange(q.get('range') ?? '30d', at);
         return [200, { range: r.range, ...cycles(readSamples(r.from, r.to), device?.battery.designCycleCount) }];
+      }
+      case '/api/habits': {
+        const r = resolveRange(q.get('range') ?? '30d', at);
+        return [200, { range: r.range, ...habits(readSamples(r.from, r.to)) }];
+      }
+      case '/api/anomalies': {
+        const r = resolveRange(q.get('range') ?? '30d', at);
+        return [200, { range: r.range, ...anomalies(readSamples(r.from, r.to)) }];
+      }
+      case '/api/sleep': {
+        const r = resolveRange(q.get('range') ?? '30d', at);
+        // A few minutes before "from" so a wake right after it still pairs with the sample before sleep.
+        return [200, { range: r.range, ...sleepDrain(readSamples(r.from - 5 * 60_000, r.to)) }];
+      }
+      case '/api/settings': {
+        if (req.method === 'GET') return [200, { alerts: parseAlerts(readConfig().alerts) }];
+        const g = await guard(req);
+        if (Array.isArray(g)) return g;
+        writeConfig({ alerts: parseAlerts(g.body?.alerts) });
+        return [200, { alerts: parseAlerts(readConfig().alerts) }];
       }
       case '/api/samples': {
         const s = readSamples(Number(q.get('from')) || 0, Number(q.get('to')) || Date.now());
@@ -51,11 +86,9 @@ export function createServer(adapter: Adapter, port: number) {
       }
       case '/api/data/stats': return [200, dataStats()];
       case '/api/data/clear': {
-        if (req.method !== 'POST') return [405, { error: 'POST only' }];
-        if (!origins.has(req.headers.origin ?? '')) return [403, { error: 'Bad origin' }];
-        const body = await readBody(req);
-        if (body?.token !== token) return [403, { error: 'Bad token' }];
-        if (body?.confirm !== 'DELETE') return [400, { error: 'Type DELETE to confirm' }];
+        const g = await guard(req);
+        if (Array.isArray(g)) return g;
+        if (g.body?.confirm !== 'DELETE') return [400, { error: 'Type DELETE to confirm' }];
         clearAll();
         return [200, { ok: true }];
       }
@@ -66,6 +99,28 @@ export function createServer(adapter: Adapter, port: number) {
   const server = http.createServer(async (req, res) => {
     const url = new URL(req.url ?? '/', `http://127.0.0.1:${port}`);
     try {
+      if (url.pathname === '/api/live/stream') {
+        res.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-store', connection: 'keep-alive' });
+        const push = async () => { res.write(`data: ${JSON.stringify(await live())}\n\n`); };
+        void push();
+        const id = setInterval(push, 5_000);
+        req.on('close', () => clearInterval(id));
+        return;
+      }
+      if (url.pathname === '/api/report.pdf') {
+        const out = path.join(os.tmpdir(), `batterylens-report-${crypto.randomUUID()}.pdf`);
+        try {
+          await renderPdf(`http://127.0.0.1:${port}/report/`, out);
+          res.writeHead(200, { 'content-type': 'application/pdf', 'content-disposition': 'attachment; filename="batterylens-report.pdf"', 'cache-control': 'no-store' });
+          res.end(fs.readFileSync(out));
+        } catch (e: any) {
+          // The dashboard falls back to the print dialog on any non-200.
+          res.writeHead(503, { 'content-type': 'application/json' }).end(JSON.stringify({ error: e.message }));
+        } finally {
+          fs.rmSync(out, { force: true });
+        }
+        return;
+      }
       if (url.pathname.startsWith('/api/')) {
         const [status, body, type] = await api(url, req);
         res.writeHead(status, { 'content-type': type ?? 'application/json', 'cache-control': 'no-store' });

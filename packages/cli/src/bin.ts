@@ -1,8 +1,6 @@
 #!/usr/bin/env node
 import fs from 'node:fs';
-import os from 'node:os';
 import path from 'node:path';
-import { execFile } from 'node:child_process';
 import { createInterface } from 'node:readline/promises';
 import { Command } from 'commander';
 import open from 'open';
@@ -13,8 +11,11 @@ import { clearAll, dataStats, pruneIfNewDay, readConfig, readDevice, readSamples
 import { usage } from './analytics.js';
 import { listen } from './server.js';
 import { install, uninstall } from './scheduler.js';
+import { findBrowser, renderPdf } from './pdf.js';
 
-const program = new Command('batterylens').description('One command. Full battery story.').version('0.1.0');
+// Single source of truth for the version: the package.json that ships with dist/.
+const { version } = JSON.parse(fs.readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
+const program = new Command('batterylens').description('One command. Full battery story.').version(version);
 const fmtH = (h: number) => `${Math.floor(h)}h${String(Math.round((h % 1) * 60)).padStart(2, '0')}m`;
 
 async function serve(port: number) {
@@ -101,22 +102,16 @@ program
   .description('Generate a PDF report using Chrome/Edge headless')
   .option('--pdf [file]', 'output PDF path', 'batterylens-report.pdf')
   .action(async (o) => {
-    const browser = findBrowser();
-    if (!browser) { console.error(pc.red('Chrome or Edge not found. Open the dashboard and use "Export PDF" instead.')); process.exit(1); }
+    if (!findBrowser()) { console.error(pc.red('Chrome or Edge not found. Open the dashboard and use "Export PDF" instead.')); process.exit(1); }
     const { server, url } = await serve(readConfig().port ?? 4545);
     const out = path.resolve(typeof o.pdf === 'string' ? o.pdf : 'batterylens-report.pdf');
-    fs.rmSync(out, { force: true });
-    // A throwaway profile stops the browser from handing the job to an already-open window.
-    const profile = fs.mkdtempSync(path.join(os.tmpdir(), 'bl-browser-'));
-    await new Promise<void>((resolve, reject) =>
-      execFile(browser, ['--headless=new', '--disable-gpu', `--user-data-dir=${profile}`, '--virtual-time-budget=8000', `--print-to-pdf=${out}`, '--no-pdf-header-footer', `${url}/report/`],
-        (err) => (err ? reject(err) : resolve())));
-    // Edge's launcher exits before the PDF is written, so wait for the file to appear.
-    for (let i = 0; i < 120 && !fs.existsSync(out); i++) await new Promise((r) => setTimeout(r, 500));
-    await new Promise((r) => setTimeout(r, 500));
+    try {
+      await renderPdf(`${url}/report/`, out);
+    } catch (e: any) {
+      console.error(pc.red(e.message));
+      process.exit(1);
+    }
     server.close();
-    fs.rmSync(profile, { recursive: true, force: true, maxRetries: 5 });
-    if (!fs.existsSync(out)) { console.error(pc.red(`PDF was not written to ${out}`)); process.exit(1); }
     console.log(pc.green(`✔ Saved ${out}`));
     process.exit(0);
   });
@@ -128,16 +123,6 @@ async function confirmDelete() {
   const answer = await rl.question('Type DELETE to confirm: ');
   rl.close();
   return answer.trim() === 'DELETE';
-}
-
-function findBrowser() {
-  const candidates = process.platform === 'win32'
-    ? [process.env['PROGRAMFILES(X86)'], process.env.PROGRAMFILES, process.env.LOCALAPPDATA].filter(Boolean).flatMap((p) => [
-        path.join(p!, 'Google', 'Chrome', 'Application', 'chrome.exe'),
-        path.join(p!, 'Microsoft', 'Edge', 'Application', 'msedge.exe')])
-    : ['/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', '/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge',
-       path.join(os.homedir(), 'Applications', 'Google Chrome.app', 'Contents', 'MacOS', 'Google Chrome')];
-  return candidates.find((c) => fs.existsSync(c));
 }
 
 program.parseAsync().catch((e) => { console.error(pc.red(e.message)); process.exit(1); });
