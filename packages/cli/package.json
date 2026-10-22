@@ -1,0 +1,38 @@
+{
+  "name": "batterylens",
+  "version": "0.1.0",
+  "description": "One command. Full battery story. Windows + macOS.",
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "batterylens": "dist/bin.js"
+  },
+  "files": [
+    "dist",
+    "dashboard"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "os": [
+    "win32",
+    "darwin"
+  ],
+  "scripts": {
+    "build": "tsc && node scripts/copy-dashboard.mjs",
+    "dev": "tsc --watch",
+    "test": "tsc && node --test dist/**/*.test.js"
+  },
+  "dependencies": {
+    "commander": "^15.0.0",
+    "fast-xml-parser": "^5.11.2",
+    "open": "^11.0.4",
+    "picocolors": "^1.1.1",
+    "plist": "^5.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.5",
+    "@types/plist": "^3.0.5",
+    "typescript": "^7.0.2"
+  }
+}
