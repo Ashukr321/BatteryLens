@@ -1,11 +1,12 @@
 {
   "name": "batterylens-monorepo",
   "private": true,
+  "workspaces": ["packages/*"],
   "scripts": {
-    "dev:dashboard": "pnpm --filter dashboard dev",
-    "dev:cli": "pnpm --filter batterylens dev",
-    "build": "pnpm --filter dashboard build && pnpm --filter batterylens build",
+    "dev:dashboard": "npm run dev -w dashboard",
+    "dev:cli": "npm run dev -w batterylens",
+    "build": "npm run build -w dashboard && npm run build -w batterylens",
+    "test": "npm test -w batterylens",
     "start": "node packages/cli/dist/bin.js"
-  },
-  "packageManager": "pnpm@10.28.2"
+  }
 }

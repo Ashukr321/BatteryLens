@@ -1,7 +1,7 @@
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import os from 'node:os';
-import plist from 'plist';
+import * as plist from 'plist';
 import type { Adapter, DeviceInfo, Sample } from './types.js';
 
 const run = promisify(execFile);

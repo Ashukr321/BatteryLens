@@ -2,6 +2,6 @@
 import fs from 'node:fs';
 const src = new URL('../../dashboard/out', import.meta.url);
 const dest = new URL('../dashboard', import.meta.url);
-if (!fs.existsSync(src)) { console.warn('dashboard/out missing — run `pnpm --filter dashboard build` first'); process.exit(0); }
+if (!fs.existsSync(src)) { console.warn('dashboard/out missing — run `npm run build -w dashboard` first'); process.exit(0); }
 fs.rmSync(dest, { recursive: true, force: true });
 fs.cpSync(src, dest, { recursive: true });
