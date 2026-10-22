@@ -23,7 +23,8 @@
   "scripts": {
     "build": "tsc && node scripts/copy-dashboard.mjs",
     "dev": "tsc --watch",
-    "test": "tsc && node --test \"dist/**/*.test.js\""
+    "test": "tsc && node --test \"dist/**/*.test.js\"",
+    "prepublishOnly": "node scripts/check-version.mjs"
   },
   "dependencies": {
     "commander": "^15.0.0",

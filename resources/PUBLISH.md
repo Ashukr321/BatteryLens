@@ -77,13 +77,24 @@ Kaunsa bump?
 | Naya feature | `npm version minor` | 0.1.2 → 0.2.0 |
 | Breaking change | `npm version major` | 0.2.0 → 1.0.0 |
 
+**Ek command (recommended)**: version bump + build + test + publish, sab ek saath. Pehle `packages/cli/CHANGELOG.md` me naya section likh lo.
+
+```bash
+npm run release          # patch: 0.2.0 → 0.2.1 (bug fix)
+npm run release:minor    # minor: 0.2.1 → 0.3.0 (naya feature)
+npm run release:major    # major: 0.3.0 → 1.0.0 (breaking)
+npm view batterylens version   # naya version dikhna chahiye
+```
+
+Agar bina bump ke `npm publish` chala diya to `prepublishOnly` guard (`packages/cli/scripts/check-version.mjs`) upload se pehle hi rok dega aur bata dega kaunsa command chalana hai.
+
+Manual tareeka (same steps):
+
 ```bash
 npm version patch -w batterylens --no-git-tag-version
-# packages/cli/CHANGELOG.md me naya section likho
 npm run build      # zaroori: sidebar + --version naya version tabhi dikhayenge
 npm test
 npm publish -w batterylens --access public
-npm view batterylens version   # naya version dikhna chahiye
 ```
 
 Version ek hi jagah se aata hai: `packages/cli/package.json`. CLI `--version` aur dashboard sidebar dono wahi padhte hain, kahin aur hard-code mat karo.

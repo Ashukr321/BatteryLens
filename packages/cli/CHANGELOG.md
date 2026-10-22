@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.2.0 — 2026-10-22
 
 ### Added
 - Smart alerts from the background collector: unplug / plug-in thresholds, hot battery, fast sleep drain, and a Monday weekly summary (Windows toast / macOS Notification Center). Configurable in Settings.
