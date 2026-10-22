@@ -27,7 +27,13 @@ export interface Sample {
   temperatureC?: number;
   voltageMv?: number;
   adapterWatts?: number;
+  /** Estimated: user idle time below the OS display-off timeout. Recorded by the collector only. */
+  screenOn?: boolean;
+  /** Top apps in the last minute: CPU seconds (Windows) or energy impact (macOS). Collector only. */
+  apps?: Record<string, number>;
 }
+
+export type Activity = Pick<Sample, 'screenOn' | 'apps'>;
 
 export interface Adapter {
   /** null when the machine has no battery (desktop). */
@@ -35,5 +41,7 @@ export interface Adapter {
   sample(): Promise<Sample | null>;
   /** Whatever history the OS already kept, so the first dashboard isn't empty. */
   history(): Promise<Sample[]>;
+  /** Screen state and per-app load since the previous call; only the collector calls this, once a minute. */
+  activity?(acConnected: boolean): Promise<Activity>;
   close?(): void;
 }

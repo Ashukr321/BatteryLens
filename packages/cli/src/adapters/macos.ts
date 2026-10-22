@@ -2,7 +2,7 @@ import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import os from 'node:os';
 import * as plist from 'plist';
-import type { Adapter, DeviceInfo, Sample } from './types.js';
+import type { Activity, Adapter, DeviceInfo, Sample } from './types.js';
 
 const run = promisify(execFile);
 
@@ -53,6 +53,27 @@ export function pmsetToSamples(log: string): Sample[] {
   return out;
 }
 
+/** Parses the last sample block of `top -l 2 -stats command,power` (the first block's power is always 0). */
+export function parseTopPower(out: string): Record<string, number> | undefined {
+  const lines = out.split('\n');
+  let start = -1;
+  lines.forEach((l, i) => { if (/^\s*COMMAND\s+POWER\b/.test(l)) start = i; });
+  const apps: Record<string, number> = {};
+  for (const l of start < 0 ? [] : lines.slice(start + 1)) {
+    const m = /^(.*?)\s+([\d.]+)\s*$/.exec(l);
+    if (m && +m[2] > 0) apps[m[1].trim()] = +((apps[m[1].trim()] ?? 0) + +m[2]).toFixed(1);
+  }
+  return Object.keys(apps).length ? apps : undefined;
+}
+
+/** Screen on = HID idle time below pmset's displaysleep (minutes, 0 = never) for the current power source. */
+export function macScreenOn(ioregIdle: string, pmset: string) {
+  const idleNs = Number(/"HIDIdleTime" = (\d+)/.exec(ioregIdle)?.[1]);
+  const sleepMin = Number(/displaysleep\s+(\d+)/.exec(pmset)?.[1]);
+  if (isNaN(idleNs)) return undefined;
+  return !sleepMin || idleNs / 1e9 < sleepMin * 60;
+}
+
 export function macosAdapter(): Adapter {
   return {
     async device(): Promise<DeviceInfo | null> {
@@ -84,6 +105,16 @@ export function macosAdapter(): Adapter {
     async sample() {
       const b = await ioreg();
       return b ? parseBattery(b) : null;
+    },
+
+    async activity(): Promise<Activity> {
+      const out = (cmd: string, args: string[]) => run(cmd, args).then((r) => r.stdout).catch(() => '');
+      const [idle, pm, top] = await Promise.all([
+        out('ioreg', ['-c', 'IOHIDSystem', '-d', '4', '-k', 'HIDIdleTime']),
+        out('pmset', ['-g']),
+        out('top', ['-l', '2', '-s', '1', '-stats', 'command,power', '-o', 'power', '-n', '8']),
+      ]);
+      return { screenOn: macScreenOn(idle, pm), apps: parseTopPower(top) };
     },
 
     async history() {

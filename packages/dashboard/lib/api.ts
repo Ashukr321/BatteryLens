@@ -32,6 +32,8 @@ export interface Sample {
   temperatureC?: number;
   voltageMv?: number;
   adapterWatts?: number;
+  screenOn?: boolean;
+  apps?: Record<string, number>;
 }
 
 export type Range = "24h" | "7d" | "14d" | "30d" | "month";
@@ -41,8 +43,15 @@ export interface Usage {
   from: number;
   to: number;
   bucket: "hour" | "day";
-  totals: { plugged: number; battery: number; off: number };
-  rows: { key: string; plugged: number; battery: number; off: number }[];
+  /** screen* are null until the collector has recorded screen state in this range. */
+  totals: { plugged: number; battery: number; off: number; screen: number | null; screenBattery: number | null };
+  rows: { key: string; plugged: number; battery: number; off: number; screen: number }[];
+}
+
+export interface AppUsage {
+  unit: "cpu" | "energy";
+  minutes: number;
+  apps: { name: string; share: number }[];
 }
 
 export interface Health {

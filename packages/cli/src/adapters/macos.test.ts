@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as plist from 'plist';
-import { parseBattery, pmsetToSamples } from './macos.js';
+import { macScreenOn, parseBattery, parseTopPower, pmsetToSamples } from './macos.js';
 
 // Trimmed `ioreg -arn AppleSmartBattery` output; only the keys the adapter reads.
 const ioreg = (body: string) => `<?xml version="1.0" encoding="UTF-8"?>
@@ -64,4 +64,21 @@ test('pmset log: power-source switches become minute samples, capped at 12h', ()
   assert.equal(out[0].percent, 80);
   assert.equal(out[30].percent, 79);
   assert.equal(out.length, 30 + 12 * 60);
+});
+
+test('top -stats power: uses the second sample block and sums duplicate names', () => {
+  const out = [
+    'Processes: 512 total', 'COMMAND          POWER', 'Safari           0.0', 'WindowServer     0.0',
+    'Processes: 512 total', 'COMMAND          POWER', 'Safari           12.4', 'WindowServer     8.1', 'Google Chrome He 3.0', 'Google Chrome He 2.0', 'kernel_task      0.0',
+  ].join('\n');
+  assert.deepEqual(parseTopPower(out), { Safari: 12.4, WindowServer: 8.1, 'Google Chrome He': 5 });
+  assert.equal(parseTopPower(''), undefined);
+});
+
+test('macOS screen-on: HID idle vs pmset displaysleep', () => {
+  const pm = (m: number) => `Currently in use:\n displaysleep         ${m}\n sleep                1`;
+  assert.equal(macScreenOn('"HIDIdleTime" = 30000000000', pm(2)), true); // 30s idle, 2 min timeout
+  assert.equal(macScreenOn('"HIDIdleTime" = 300000000000', pm(2)), false); // 5 min idle
+  assert.equal(macScreenOn('"HIDIdleTime" = 300000000000', pm(0)), true); // never sleeps
+  assert.equal(macScreenOn('', pm(2)), undefined);
 });

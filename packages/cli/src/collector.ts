@@ -50,6 +50,7 @@ export async function startCollector(adapter = getAdapter()): Promise<(() => voi
       pruneIfNewDay(); // catches midnight even if the laptop slept through it
       const s = await adapter.sample();
       if (s) {
+        Object.assign(s, await adapter.activity?.(s.acConnected).catch((e) => { log(`activity failed: ${e.message}`); return {}; }));
         appendSamples([s]);
         checkAlerts(prev, s);
         prev = s;

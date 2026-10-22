@@ -25,6 +25,7 @@ Last updated: 2026-10-22 · npm: `batterylens@0.1.1` published; v1.x features be
 - [~] macOS adapter (ioreg, system_profiler, pmset): written, **not tested on a real Mac**
 - [x] Bootstrap import of OS history on first run (Windows RecentUsage, macOS pmset log)
 - [x] 60s collector loop, single instance (pid lock), sleep/wake gap detection (> 3 min)
+- [x] Collector records screen-on state + top apps each minute (`activity()`, collector only)
 - [x] Collector sends OS notifications (Windows toast / macOS Notification Center) for alerts + weekly summary
 - [x] Desktop / no battery → friendly message
 
@@ -40,11 +41,11 @@ Last updated: 2026-10-22 · npm: `batterylens@0.1.1` published; v1.x features be
 - [x] Full charges (hysteresis ≥ 99 after < 95), equivalent cycles, charge sessions
 - [x] Health % (full charge / design), 24h + daily trend, linear forecast to 80%
 - [x] Cycle life used (500 assumed on Windows, clearly labelled)
-- [x] Habit score, sleep drain per gap (charging gaps excluded), temperature avg/max per bucket, weekly summary, anomalies
+- [x] Habit score, sleep drain per gap (charging gaps excluded), temperature avg/max per bucket, weekly summary, anomalies, screen-on hours, app share on battery
 - [x] 25h DST days still bucket hourly
 
 ### API & security
-- [x] `/api/device`, `/api/live`, `/api/usage` (+ `range=day&day=`), `/api/health` (+ temperature), `/api/cycles`, `/api/habits`, `/api/sleep`, `/api/anomalies`, `/api/samples` (+ CSV), `/api/data/stats`, `/api/settings` (GET/POST), `/api/report.pdf`, `POST /api/data/clear`
+- [x] `/api/device`, `/api/live`, `/api/usage` (+ `range=day&day=`), `/api/health` (+ temperature), `/api/cycles`, `/api/habits`, `/api/sleep`, `/api/anomalies`, `/api/apps`, `/api/samples` (+ CSV), `/api/data/stats`, `/api/settings` (GET/POST), `/api/report.pdf`, `POST /api/data/clear`
 - [x] Binds `127.0.0.1` only
 - [x] Clear and settings writes need per-session token + same Origin (clear also needs `DELETE`)
 - [x] SSE `/api/live/stream` (live card; pushes every 5s)
@@ -52,7 +53,7 @@ Last updated: 2026-10-22 · npm: `batterylens@0.1.1` published; v1.x features be
 ### Dashboard (Next.js static export + shadcn + Recharts)
 - [x] Collapsible sidebar (icon mode, Ctrl+B); Theme / Language / Export PDF / version in the footer
 - [x] Overview: live card (SSE, slow-charger warning), health gauge, 24h level chart with charger shading, 24h donut, device card, anomalies
-- [x] Usage: range tabs 24h / 7d / 14d / 30d / Monthly (month picker), totals, area chart, Brush on long ranges, calendar heatmap, sleep drain card
+- [x] Usage: range tabs 24h / 7d / 14d / 30d / Monthly (month picker), totals, area chart, Brush on long ranges, calendar heatmap, sleep drain card, screen-on total + line, app energy card
 - [x] Health: current, trend per month, 80% date + replacement link, habit score, health area + dashed forecast, capacity vs design, temperature
 - [x] Cycles: cycle count + progress, full charges per day, sortable/filterable sessions table
 - [x] Settings: smart alert thresholds, stored-data stats, CSV + JSON export, Clear all records dialog (Export CSV first + type DELETE)
@@ -64,8 +65,8 @@ Last updated: 2026-10-22 · npm: `batterylens@0.1.1` published; v1.x features be
 - [x] Legend click to hide/show a series
 
 ### Quality
-- [x] Unit tests: usage, cycles, retention, powercfg import, live %, day range, habits, sleep drain, alerts, weekly summary, anomalies
-- [x] macOS fixtures (Intel + Apple Silicon ioreg / pmset) + tests
+- [x] Unit tests: usage, cycles, retention, powercfg import, live %, day range, habits, sleep drain, alerts, weekly summary, anomalies, screen-on, app usage
+- [x] macOS fixtures (Intel + Apple Silicon ioreg / pmset, `top` power, HID idle) + tests
 - [~] CI (GitHub Actions: `windows-latest` + `macos-latest`): workflow written, **not run yet** (needs a push)
 - [x] ESLint pass (dashboard)
 - [ ] Real-machine test of `install` / `uninstall` (Windows + macOS)
@@ -94,8 +95,8 @@ Suggested order:
 ## 🚀 v2+: Bigger features
 
 - [ ] Tray / menu-bar app (Electron or Tauri)
-- [ ] App-wise energy usage (Windows `powercfg /srumutil`, macOS `top -stats power`)
-- [ ] Screen-on time
+- [~] App-wise energy usage: `powercfg /srumutil` needs admin (status 5), so Windows uses each app's share of CPU time on battery (`Get-Process` deltas, per minute); macOS uses `top -stats power` (no sudo). `/api/apps`, Usage card. macOS path untested on a real Mac
+- [~] Screen-on time (estimate): idle time below the OS display-off timeout (Windows `GetLastInputInfo` + `powercfg /q VIDEOIDLE`; macOS `HIDIdleTime` + `pmset displaysleep`); undercounts video without input. Usage total + chart line + day drawer; recorded from now on (not in imported history)
 - [ ] Linux support (`/sys/class/power_supply`)
 - [ ] Compare mode (this month vs last month, two laptops)
 - [ ] Multi-device sync (opt-in, self-hosted)

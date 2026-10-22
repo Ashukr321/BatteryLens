@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { XMLParser } from 'fast-xml-parser';
-import type { Adapter, DeviceInfo, Sample } from './types.js';
+import type { Activity, Adapter, DeviceInfo, Sample } from './types.js';
 
 const run = promisify(execFile);
 const END = '__BL_END__';
@@ -53,6 +53,19 @@ if (-not $b) { '{}' } else {
   $c = Get-CimInstance -Namespace root/wmi -ClassName BatteryCycleCount -ErrorAction SilentlyContinue | Select-Object -First 1;
   @{ percent = $b.EstimatedChargeRemaining; status = $b.BatteryStatus; online = $s.PowerOnline; charging = $s.Charging;
      voltage = $s.Voltage; remaining = $s.RemainingCapacity; full = $f.FullChargedCapacity; cycles = $c.CycleCount } | ConvertTo-Json -Compress }`;
+
+// Idle time (GetLastInputInfo), display-off timeouts (last two powercfg values: AC, DC; labels are localized)
+// and per-app CPU seconds since the previous call ($global:blPrev lives on in the persistent shell). No admin needed.
+const ACTIVITY = String.raw`if (-not ('BLIdle' -as [type])) { Add-Type 'using System; using System.Runtime.InteropServices; public static class BLIdle { [StructLayout(LayoutKind.Sequential)] struct LII { public uint cbSize; public uint dwTime; } [DllImport("user32.dll")] static extern bool GetLastInputInfo(ref LII p); public static long Ms() { var l = new LII(); l.cbSize = (uint)Marshal.SizeOf(l); if (!GetLastInputInfo(ref l)) return -1; return (long)(uint)((uint)Environment.TickCount - l.dwTime); } }' };
+$v = @([regex]::Matches((powercfg /q SCHEME_CURRENT SUB_VIDEO VIDEOIDLE | Out-String), '0x[0-9a-fA-F]{8}') | ForEach-Object { [Convert]::ToInt64($_.Value, 16) });
+$now = @{}; Get-Process | Where-Object { $_.CPU -ne $null -and $_.Id -ne 0 -and $_.Id -ne $PID } | ForEach-Object { $now[[string]$_.Id] = @($_.ProcessName, $_.CPU) };
+$apps = @{}; if ($global:blPrev) { foreach ($k in $now.Keys) { $p = $global:blPrev[$k]; if ($p -and $p[0] -eq $now[$k][0]) { $d = $now[$k][1] - $p[1]; if ($d -gt 0) { $apps[$now[$k][0]] += $d } } } };
+$global:blPrev = $now;
+$top = @{}; $apps.GetEnumerator() | Sort-Object Value -Descending | Select-Object -First 6 | ForEach-Object { $top[$_.Key] = [math]::Round($_.Value, 2) };
+@{ idleMs = [BLIdle]::Ms(); acTimeout = $v[-2]; dcTimeout = $v[-1]; apps = $top } | ConvertTo-Json -Compress`;
+
+/** Screen counts as on until idle reaches the display-off timeout; 0 means "never turn off". */
+export const screenOnFrom = (idleMs: number, timeoutS?: number) => idleMs >= 0 && (!timeoutS || idleMs < timeoutS * 1000);
 
 const parser = new XMLParser({ ignoreAttributes: false, attributeNamePrefix: '', parseTagValue: false });
 
@@ -159,6 +172,14 @@ export function windowsAdapter(): Adapter {
     async history() {
       const r = await batteryReport();
       return usageToSamples(arr(r?.RecentUsage?.UsageEntry));
+    },
+
+    async activity(acConnected): Promise<Activity> {
+      const j = JSON.parse((await shell.exec(ACTIVITY)) || '{}');
+      return {
+        screenOn: screenOnFrom(j.idleMs ?? -1, acConnected ? j.acTimeout : j.dcTimeout),
+        apps: j.apps && Object.keys(j.apps).length ? j.apps : undefined,
+      };
     },
 
     close: () => shell.close(),

@@ -6,7 +6,7 @@ import os from 'node:os';
 import { fileURLToPath } from 'node:url';
 import type { Adapter } from './adapters/types.js';
 import { clearAll, dataStats, latestSample, readConfig, readDevice, readSamples, writeConfig } from './store.js';
-import { anomalies, cycles, habits, health, resolveRange, sleepDrain, usage } from './analytics.js';
+import { anomalies, appUsage, cycles, habits, health, resolveRange, sleepDrain, usage } from './analytics.js';
 import { parseAlerts } from './alerts.js';
 import { renderPdf } from './pdf.js';
 
@@ -17,7 +17,7 @@ const MIME: Record<string, string> = {
   '.svg': 'image/svg+xml', '.png': 'image/png', '.ico': 'image/x-icon', '.woff2': 'font/woff2', '.txt': 'text/plain', '.webmanifest': 'application/manifest+json',
 };
 
-const CSV_COLS = ['ts', 'percent', 'acConnected', 'charging', 'fullChargeCapacity', 'cycleCount', 'temperatureC', 'voltageMv', 'adapterWatts'] as const;
+const CSV_COLS = ['ts', 'percent', 'acConnected', 'charging', 'fullChargeCapacity', 'cycleCount', 'temperatureC', 'voltageMv', 'adapterWatts', 'screenOn'] as const;
 
 export function toCsv(samples: Record<string, unknown>[]) {
   return [['time', ...CSV_COLS].join(','), ...samples.map((s) => [new Date(s.ts as number).toISOString(), ...CSV_COLS.map((c) => s[c] ?? '')].join(','))].join('\n');
@@ -63,6 +63,10 @@ export function createServer(adapter: Adapter, port: number) {
       case '/api/habits': {
         const r = resolveRange(q.get('range') ?? '30d', at);
         return [200, { range: r.range, ...habits(readSamples(r.from, r.to)) }];
+      }
+      case '/api/apps': {
+        const r = resolveRange(q.get('range') ?? '30d', at);
+        return [200, { range: r.range, unit: process.platform === 'darwin' ? 'energy' : 'cpu', ...appUsage(readSamples(r.from, r.to)) }];
       }
       case '/api/anomalies': {
         const r = resolveRange(q.get('range') ?? '30d', at);

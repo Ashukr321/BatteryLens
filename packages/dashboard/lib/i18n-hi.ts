@@ -69,6 +69,16 @@ export const HI: Record<string, string> = {
   "Drained {rate}%/h in use, about {x}× the usual {usual}%/h. Check for a busy app.": "इस्तेमाल में {rate}%/घंटा खपत, सामान्य {usual}%/घंटा का लगभग {x}×। कोई भारी ऐप चल रहा होगा, जाँचें।",
   "Install app": "ऐप इंस्टॉल करें",
 
+  "Screen on": "स्क्रीन ऑन",
+  "Screen on (estimate)": "स्क्रीन ऑन (अनुमान)",
+  "{h} on battery": "{h} बैटरी पर",
+  "Recorded by the collector from now on": "अब से कलेक्टर रिकॉर्ड करेगा",
+  "App energy use (on battery)": "ऐप के हिसाब से ऊर्जा (बैटरी पर)",
+  "Share of macOS energy impact while unplugged": "अनप्लग रहने पर macOS एनर्जी इम्पैक्ट में हिस्सा",
+  "Estimated from each app's share of CPU time while unplugged": "अनप्लग रहने पर हर ऐप के CPU समय के हिस्से से अनुमान",
+  "No app data on battery yet. The collector records it every minute while unplugged.": "बैटरी पर अभी ऐप डेटा नहीं है। अनप्लग रहने पर कलेक्टर हर मिनट इसे रिकॉर्ड करता है।",
+  Other: "अन्य",
+
   // usage
   "Sleep / off": "स्लीप / बंद",
   "Sleep / off / no data": "स्लीप / बंद / डेटा नहीं",

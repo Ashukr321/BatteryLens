@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Area, AreaChart, Brush, CartesianGrid, XAxis, YAxis } from "recharts";
+import { Area, AreaChart, Brush, CartesianGrid, ComposedChart, Line, XAxis, YAxis } from "recharts";
 import { TriangleAlert } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -12,7 +12,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ChartContainer, ChartLegend, ChartLegendContent, ChartTooltip, ChartTooltipContent, useSeriesToggle, type ChartConfig } from "@/components/ui/chart";
 import { BatteryLevelChart } from "@/components/sections/overview";
 import { EmptyState, Gradient, StatusLine } from "@/components/sections/states";
-import { bucketLabel, fmtDate, fmtHours, fmtTime, useApi, type Range, type SleepDrain, type Usage } from "@/lib/api";
+import { bucketLabel, fmtDate, fmtHours, fmtTime, useApi, type AppUsage, type Range, type SleepDrain, type Usage } from "@/lib/api";
 import { useT } from "@/lib/i18n";
 
 const RANGES: { value: Range; label: string }[] = [
@@ -29,6 +29,7 @@ function useUsageConfig() {
     plugged: { label: t("On charger"), color: "var(--plug)" },
     battery: { label: t("On battery"), color: "var(--batt)" },
     off: { label: t("Sleep / off"), color: "var(--off)" },
+    screen: { label: t("Screen on"), color: "var(--warn)" },
   } satisfies ChartConfig;
 }
 
@@ -68,10 +69,16 @@ export function UsageSection({ initialRange = "7d", controls = true }: { initial
         <StatusLine error={error} />
       ) : (
         <>
-          <div className="grid gap-4 @xl:grid-cols-3">
+          <div className="grid gap-4 @xl:grid-cols-2 @5xl:grid-cols-4">
             <Total title={t("On charger")} hours={u.totals.plugged} color="var(--plug)" />
             <Total title={t("On battery")} hours={u.totals.battery} color="var(--batt)" />
             <Total title={t("Sleep / off / no data")} hours={u.totals.off} color="var(--off)" />
+            <Total
+              title={t("Screen on (estimate)")}
+              hours={u.totals.screen}
+              color="var(--warn)"
+              sub={u.totals.screenBattery != null ? t("{h} on battery", { h: fmtHours(u.totals.screenBattery) }) : t("Recorded by the collector from now on")}
+            />
           </div>
           <Card>
             <CardHeader>
@@ -89,7 +96,7 @@ export function UsageSection({ initialRange = "7d", controls = true }: { initial
               ) : (
                 <ChartContainer config={config} className={`h-60 w-full @3xl:h-80 ${controls ? "cursor-pointer" : ""}`}>
                   {/* Sleep/off is left out of the chart (it dwarfs active time); it's in the totals above. */}
-                  <AreaChart data={u.rows} margin={{ left: -20, right: 8, top: 8 }} onClick={(e) => controls && e?.activeLabel && setDay(String(e.activeLabel).slice(0, 10))}>
+                  <ComposedChart data={u.rows} margin={{ left: -20, right: 8, top: 8 }} onClick={(e) => controls && e?.activeLabel && setDay(String(e.activeLabel).slice(0, 10))}>
                     <defs>
                       <Gradient id="fill-plugged" color="var(--color-plugged)" />
                       <Gradient id="fill-battery" color="var(--color-battery)" />
@@ -101,8 +108,9 @@ export function UsageSection({ initialRange = "7d", controls = true }: { initial
                     <ChartLegend content={<ChartLegendContent {...series.legend} />} />
                     <Area dataKey="plugged" hide={series.isHidden("plugged")} stackId="a" type="monotone" stroke="var(--color-plugged)" strokeWidth={2} fill="url(#fill-plugged)" isAnimationActive={false} />
                     <Area dataKey="battery" hide={series.isHidden("battery")} stackId="a" type="monotone" stroke="var(--color-battery)" strokeWidth={2} fill="url(#fill-battery)" isAnimationActive={false} />
+                    {u.totals.screen != null && <Line dataKey="screen" hide={series.isHidden("screen")} type="monotone" stroke="var(--color-screen)" strokeDasharray="5 3" strokeWidth={2} dot={false} isAnimationActive={false} />}
                     {controls && u.rows.length > 14 && <Brush dataKey="key" height={20} tickFormatter={bucketLabel} stroke="var(--muted-foreground)" />}
-                  </AreaChart>
+                  </ComposedChart>
                 </ChartContainer>
               )}
             </CardContent>
@@ -111,6 +119,7 @@ export function UsageSection({ initialRange = "7d", controls = true }: { initial
             <UsageHeatmap onDay={controls ? setDay : undefined} />
             <SleepDrainCard query={query} />
           </div>
+          <AppsCard query={query} />
         </>
       )}
       <DayDrawer day={day} onClose={() => setDay(null)} />
@@ -118,15 +127,52 @@ export function UsageSection({ initialRange = "7d", controls = true }: { initial
   );
 }
 
-function Total({ title, hours, color }: { title: string; hours: number; color: string }) {
+function Total({ title, hours, color, sub }: { title: string; hours: number | null; color: string; sub?: string }) {
   return (
     <Card size="sm">
       <CardHeader>
         <CardDescription className="flex items-center gap-1.5">
           <span className="size-2.5 rounded-sm" style={{ background: color }} /> {title}
         </CardDescription>
-        <CardTitle className="text-2xl tabular-nums">{fmtHours(hours)}</CardTitle>
+        <CardTitle className="text-2xl tabular-nums">{hours != null ? fmtHours(hours) : "—"}</CardTitle>
+        {sub && <p className="text-xs text-muted-foreground">{sub}</p>}
       </CardHeader>
+    </Card>
+  );
+}
+
+/** Which apps took the most CPU (Windows) or energy impact (macOS) while on battery. */
+export function AppsCard({ query }: { query: string }) {
+  const t = useT();
+  const { data: d, error } = useApi<AppUsage>(`/api/apps?${query}`);
+  if (!d) return <StatusLine error={error} />;
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>{t("App energy use (on battery)")}</CardTitle>
+        <CardDescription>
+          {d.unit === "energy" ? t("Share of macOS energy impact while unplugged") : t("Estimated from each app's share of CPU time while unplugged")}
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        {d.apps.length === 0 ? (
+          <p className="py-4 text-center text-sm text-muted-foreground">{t("No app data on battery yet. The collector records it every minute while unplugged.")}</p>
+        ) : (
+          <ul className="grid gap-2 text-sm">
+            {d.apps.map((a) => (
+              <li key={a.name} className="grid grid-cols-[minmax(0,10rem)_1fr_3.5rem] items-center gap-3">
+                <span className="truncate" title={a.name}>
+                  {a.name === "Other" ? t("Other") : a.name}
+                </span>
+                <span className="h-2 overflow-hidden rounded-full bg-muted">
+                  <span className="block h-full rounded-full bg-[var(--batt)]" style={{ width: `${a.share}%` }} />
+                </span>
+                <span className="text-right tabular-nums text-muted-foreground">{a.share}%</span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </CardContent>
     </Card>
   );
 }
@@ -157,13 +203,13 @@ function DayDetails({ day }: { day: string }) {
       {!u ? (
         <StatusLine error={error} />
       ) : (
-        <div className="grid grid-cols-3 gap-2 text-sm">
-          {(["plugged", "battery", "off"] as const).map((k) => (
+        <div className="grid grid-cols-2 gap-2 text-sm @md:grid-cols-4">
+          {(u.totals.screen != null ? (["plugged", "battery", "off", "screen"] as const) : (["plugged", "battery", "off"] as const)).map((k) => (
             <div key={k} className="rounded-lg bg-muted/50 p-2">
               <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                 <span className="size-2 rounded-sm" style={{ background: config[k].color }} /> {config[k].label}
               </div>
-              <div className="font-medium tabular-nums">{fmtHours(u.totals[k])}</div>
+              <div className="font-medium tabular-nums">{fmtHours(u.totals[k] ?? 0)}</div>
             </div>
           ))}
         </div>

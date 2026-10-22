@@ -35,7 +35,7 @@ export function resolveRange(range: string, at?: string, now = Date.now()): { fr
 
 // ---------- usage ----------
 
-export interface UsageBucket { key: string; start: number; plugged: number; battery: number; off: number }
+export interface UsageBucket { key: string; start: number; plugged: number; battery: number; off: number; screen: number }
 
 /** Bucket boundaries in local time: hours for 24h, days otherwise. */
 function buckets(from: number, to: number, hourly: boolean): UsageBucket[] {
@@ -45,7 +45,7 @@ function buckets(from: number, to: number, hourly: boolean): UsageBucket[] {
                  : new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
   while (t <= to) {
     const s = new Date(t);
-    out.push({ key: hourly ? `${dayKey(s)} ${String(s.getHours()).padStart(2, '0')}:00` : dayKey(s), start: t, plugged: 0, battery: 0, off: 0 });
+    out.push({ key: hourly ? `${dayKey(s)} ${String(s.getHours()).padStart(2, '0')}:00` : dayKey(s), start: t, plugged: 0, battery: 0, off: 0, screen: 0 });
     // Next local hour/day; using Date setters keeps DST days at 23/25h.
     t = hourly ? t + HOUR : new Date(s.getFullYear(), s.getMonth(), s.getDate() + 1).getTime();
   }
@@ -59,22 +59,25 @@ export function usage(samples: Sample[], from: number, to: number) {
     for (let i = bs.length - 1; i >= 0; i--) if (bs[i].start <= ts) return bs[i];
     return undefined;
   };
-  let plugged = 0, battery = 0;
+  let plugged = 0, battery = 0, screen = 0, screenBattery = 0;
+  let screenKnown = false; // only collector samples carry screenOn; OS-history imports don't
   for (let i = 1; i < samples.length; i++) {
     const a = samples[i - 1], gap = samples[i].ts - a.ts;
     if (gap <= 0 || gap > SLEEP_GAP || a.ts < from) continue;
     const b = find(a.ts);
     if (a.acConnected) { plugged += gap; if (b) b.plugged += gap; } else { battery += gap; if (b) b.battery += gap; }
+    if (a.screenOn != null) screenKnown = true;
+    if (a.screenOn) { screen += gap; if (b) b.screen += gap; if (!a.acConnected) screenBattery += gap; }
   }
   const h = (ms: number) => +(ms / HOUR).toFixed(2);
   const rows = bs.map((b, i) => {
     const end = Math.min(to, i + 1 < bs.length ? bs[i + 1].start : to);
     const span = Math.max(0, end - Math.max(b.start, from));
-    return { key: b.key, plugged: h(b.plugged), battery: h(b.battery), off: h(Math.max(0, span - b.plugged - b.battery)) };
+    return { key: b.key, plugged: h(b.plugged), battery: h(b.battery), off: h(Math.max(0, span - b.plugged - b.battery)), screen: h(b.screen) };
   });
   return {
     from, to, bucket: hourly ? 'hour' : 'day',
-    totals: { plugged: h(plugged), battery: h(battery), off: h(Math.max(0, to - from - plugged - battery)) },
+    totals: { plugged: h(plugged), battery: h(battery), off: h(Math.max(0, to - from - plugged - battery)), screen: screenKnown ? h(screen) : null, screenBattery: screenKnown ? h(screenBattery) : null },
     rows,
   };
 }
@@ -301,4 +304,23 @@ export function anomalies(samples: Sample[]) {
     for (const r of rates) if (usual > 0 && r.rate >= usual * DRAIN_FACTOR) out.push({ type: 'drain', day: r.day, value: +r.rate.toFixed(1), baseline: +usual.toFixed(1) });
   }
   return { anomalies: out.sort((a, b) => b.day.localeCompare(a.day)) };
+}
+
+// ---------- apps ----------
+
+/** Each app's share of the recorded load while on battery (load = CPU seconds or macOS energy impact). */
+export function appUsage(samples: Sample[], top = 10) {
+  const load = new Map<string, number>();
+  let minutes = 0;
+  for (const s of samples) {
+    if (s.acConnected || !s.apps) continue;
+    minutes++;
+    for (const [name, v] of Object.entries(s.apps)) load.set(name, (load.get(name) ?? 0) + v);
+  }
+  const total = [...load.values()].reduce((a, b) => a + b, 0);
+  const sorted = [...load].sort((a, b) => b[1] - a[1]);
+  const apps = sorted.slice(0, top).map(([name, v]) => ({ name, share: +((v / total) * 100).toFixed(1) }));
+  const rest = sorted.slice(top).reduce((a, [, v]) => a + v, 0);
+  if (rest) apps.push({ name: 'Other', share: +((rest / total) * 100).toFixed(1) });
+  return { minutes, apps };
 }

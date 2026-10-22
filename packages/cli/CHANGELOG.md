@@ -12,6 +12,7 @@
 - JSON export, replacement-battery search link, low-wattage charger warning (macOS).
 - Hindi UI (sidebar → language).
 - Anomaly detection: sudden full-charge capacity drops and days that drained 2× faster than usual (Overview card).
+- Screen-on time (estimated from idle time vs the display-off timeout) and app energy use on battery (Windows: CPU share; macOS: energy impact), recorded by the collector every minute. No admin needed.
 - Installable as an app (PWA) from Chrome/Edge; "Install app" in the sidebar.
 - macOS ioreg / pmset fixtures and tests; GitHub Actions CI on Windows + macOS; ESLint clean.
 

@@ -12,6 +12,7 @@ Opens a local dashboard at `http://127.0.0.1:4545` showing:
 - **Charger vs battery time**: 24h / 7d / 14d / 30d / monthly, a calendar heatmap, and a per-day detail drawer
 - **Battery habit score (0–100)**: time held at 100%, deep discharges and heat, with tips
 - **Sleep drain**: % lost while asleep, with a warning when it's abnormally fast
+- **Screen-on time** (estimate) and **app energy use** on battery (which apps drain it), recorded by the background collector
 - **Anomalies**: sudden capacity drops and days that drained much faster than usual
 - **Temperature** trend (where the hardware reports it, e.g. macOS)
 - **Cycles**: OS cycle count, full charges, equivalent cycles and charge sessions

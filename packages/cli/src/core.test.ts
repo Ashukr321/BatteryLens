@@ -3,10 +3,10 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { anomalies, cycles, habits, resolveRange, sleepDrain, usage, weeklySummary } from './analytics.js';
+import { anomalies, appUsage, cycles, habits, resolveRange, sleepDrain, usage, weeklySummary } from './analytics.js';
 import { DEFAULT_ALERTS, alertsFor, parseAlerts } from './alerts.js';
 import { pruneOldData } from './store.js';
-import { livePercent, usageToSamples } from './adapters/windows.js';
+import { livePercent, screenOnFrom, usageToSamples } from './adapters/windows.js';
 import type { Sample } from './adapters/types.js';
 
 const MIN = 60_000;
@@ -111,4 +111,26 @@ test('anomalies: sudden capacity drop and a day draining 2x faster than usual', 
   assert.deepEqual(a.map((x) => x.type).sort(), ['capacity', 'drain']);
   assert.equal(a.find((x) => x.type === 'capacity')!.value, 38000);
   assert.equal(anomalies(day(0, 40000, 0.2)).anomalies.length, 0);
+});
+
+test('screen-on estimate: idle below the display timeout; 0 = never off', () => {
+  assert.equal(screenOnFrom(60_000, 180), true);
+  assert.equal(screenOnFrom(200_000, 180), false);
+  assert.equal(screenOnFrom(10_000_000, 0), true);
+  assert.equal(screenOnFrom(-1, 180), false); // GetLastInputInfo failed
+});
+
+test('usage counts screen-on time, and reports null when no sample knows the screen state', () => {
+  const on = (min: number, ac: boolean, screenOn: boolean): Sample => ({ ...s(min, 50, ac), screenOn });
+  const t = usage([on(0, false, true), on(1, false, false), on(2, true, true), on(3, true, true)], s(0, 0, false).ts, s(3, 0, false).ts).totals;
+  assert.equal(t.screen, +(2 / 60).toFixed(2));
+  assert.equal(t.screenBattery, +(1 / 60).toFixed(2));
+  assert.equal(usage([s(0, 50, false), s(1, 50, false)], s(0, 0, false).ts, s(1, 0, false).ts).totals.screen, null);
+});
+
+test('app usage: shares of load while on battery only, with Other', () => {
+  const a = (ac: boolean, apps: Record<string, number>): Sample => ({ ...s(0, 50, ac), apps });
+  const r = appUsage([a(false, { edge: 6, code: 2 }), a(false, { edge: 2, zoom: 1 }), a(true, { game: 100 })], 2);
+  assert.equal(r.minutes, 2);
+  assert.deepEqual(r.apps, [{ name: 'edge', share: 72.7 }, { name: 'code', share: 18.2 }, { name: 'Other', share: 9.1 }]);
 });
