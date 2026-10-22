@@ -1,7 +1,9 @@
 {
   "name": "batterylens-monorepo",
   "private": true,
-  "workspaces": ["packages/*"],
+  "workspaces": [
+    "packages/*"
+  ],
   "scripts": {
     "dev:dashboard": "npm run dev -w dashboard",
     "dev:cli": "npm run dev -w batterylens",
@@ -12,5 +14,8 @@
     "release": "npm version patch -w batterylens --no-git-tag-version && npm run build && npm test && npm publish -w batterylens --access public",
     "release:minor": "npm version minor -w batterylens --no-git-tag-version && npm run build && npm test && npm publish -w batterylens --access public",
     "release:major": "npm version major -w batterylens --no-git-tag-version && npm run build && npm test && npm publish -w batterylens --access public"
+  },
+  "dependencies": {
+    "batterylens": "^0.2.0"
   }
 }
