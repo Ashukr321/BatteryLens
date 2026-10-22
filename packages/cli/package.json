@@ -9,6 +9,7 @@
   },
   "files": [
     "dist",
+    "!dist/**/*.test.js",
     "dashboard"
   ],
   "engines": {
@@ -34,5 +35,22 @@
     "@types/node": "^26.6.5",
     "@types/plist": "^3.0.5",
     "typescript": "^7.0.2"
-  }
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Ashukr321/BatteryLens.git"
+  },
+  "homepage": "https://github.com/Ashukr321/BatteryLens#readme",
+  "bugs": {
+    "url": "https://github.com/Ashukr321/BatteryLens/issues"
+  },
+  "keywords": [
+    "battery",
+    "battery-health",
+    "cli",
+    "nextjs",
+    "dashboard",
+    "windows",
+    "macos"
+  ]
 }
