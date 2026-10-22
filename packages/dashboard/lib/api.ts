@@ -88,9 +88,13 @@ export function useApi<T>(path: string | null, refreshMs?: number) {
         .catch((e) => !cancelled && setError(e.message));
     load();
     const id = refreshMs ? setInterval(load, refreshMs) : undefined;
+    // Live views also refresh the moment the tab regains focus, instead of waiting for the next tick.
+    const onVisible = () => document.visibilityState === "visible" && load();
+    if (refreshMs) document.addEventListener("visibilitychange", onVisible);
     return () => {
       cancelled = true;
       clearInterval(id);
+      document.removeEventListener("visibilitychange", onVisible);
     };
   }, [path, refreshMs, tick]);
 

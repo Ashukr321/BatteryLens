@@ -95,7 +95,9 @@ function serveStatic(pathname: string, token: string, res: http.ServerResponse) 
   const ext = path.extname(file);
   let body: string | Buffer = fs.readFileSync(file);
   if (ext === '.html') body = body.toString().replace('</head>', `<script>window.__BL_TOKEN__=${JSON.stringify(token)}</script></head>`);
-  res.writeHead(file.endsWith('404.html') ? 404 : 200, { 'content-type': MIME[ext] ?? 'application/octet-stream' });
+  // Hashed build assets never change; pages and route data must revalidate or upgrades show stale UI.
+  const cache = pathname.startsWith('/_next/static/') ? 'public, max-age=31536000, immutable' : 'no-cache';
+  res.writeHead(file.endsWith('404.html') ? 404 : 200, { 'content-type': MIME[ext] ?? 'application/octet-stream', 'cache-control': cache });
   res.end(body);
 }
 

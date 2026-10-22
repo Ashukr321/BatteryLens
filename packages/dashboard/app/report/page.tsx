@@ -24,11 +24,11 @@ export default function ReportPage() {
           Generated {new Date().toLocaleString()}
         </p>
       </div>
-      <div className="grid gap-4 md:grid-cols-[3fr_2fr] print:grid-cols-[3fr_2fr]">
+      <div className="grid gap-4 @3xl:grid-cols-[3fr_2fr] print:grid-cols-[3fr_2fr]">
         <DeviceCard mask />
         <HealthGauge />
       </div>
-      <div className="grid gap-4 md:grid-cols-[2fr_1fr] print:grid-cols-[2fr_1fr]">
+      <div className="grid gap-4 @3xl:grid-cols-[2fr_1fr] print:grid-cols-[2fr_1fr]">
         <BatteryLevelChart />
         <TodayDonut />
       </div>

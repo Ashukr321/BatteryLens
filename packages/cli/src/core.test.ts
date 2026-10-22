@@ -5,7 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { cycles, usage } from './analytics.js';
 import { pruneOldData } from './store.js';
-import { usageToSamples } from './adapters/windows.js';
+import { livePercent, usageToSamples } from './adapters/windows.js';
 import type { Sample } from './adapters/types.js';
 
 const MIN = 60_000;
@@ -49,4 +49,9 @@ test('powercfg RecentUsage becomes minute samples; standby stays a gap', () => {
   assert.equal(out.length, 10);
   assert.equal(out[0].percent, 100);
   assert.ok(out.every((x) => !x.acConnected));
+});
+
+test('live percent matches the Windows taskbar (rounded capacity ratio)', () => {
+  assert.equal(livePercent({ percent: 86, remaining: 22438, full: 25900 }), 87);
+  assert.equal(livePercent({ percent: 55 }), 55); // falls back when root/wmi isn't available
 });

@@ -52,7 +52,7 @@ if (-not $b) { '{}' } else {
   $f = Get-CimInstance -Namespace root/wmi -ClassName BatteryFullChargedCapacity -ErrorAction SilentlyContinue | Select-Object -First 1;
   $c = Get-CimInstance -Namespace root/wmi -ClassName BatteryCycleCount -ErrorAction SilentlyContinue | Select-Object -First 1;
   @{ percent = $b.EstimatedChargeRemaining; status = $b.BatteryStatus; online = $s.PowerOnline; charging = $s.Charging;
-     voltage = $s.Voltage; full = $f.FullChargedCapacity; cycles = $c.CycleCount } | ConvertTo-Json -Compress }`;
+     voltage = $s.Voltage; remaining = $s.RemainingCapacity; full = $f.FullChargedCapacity; cycles = $c.CycleCount } | ConvertTo-Json -Compress }`;
 
 const parser = new XMLParser({ ignoreAttributes: false, attributeNamePrefix: '', parseTagValue: false });
 
@@ -101,6 +101,15 @@ export function usageToSamples(entries: any[]): Sample[] {
   return out;
 }
 
+/**
+ * Matches the taskbar: Windows shows round(Remaining / FullCharged). Win32_Battery's
+ * EstimatedChargeRemaining is floored/smoothed and can trail it by a percent or more.
+ */
+export function livePercent(j: { percent: number; remaining?: number; full?: number }) {
+  if (!j.remaining || !j.full) return j.percent;
+  return Math.max(0, Math.min(100, Math.round((j.remaining / j.full) * 100)));
+}
+
 export function windowsAdapter(): Adapter {
   const shell = new Shell();
   return {
@@ -138,7 +147,7 @@ export function windowsAdapter(): Adapter {
       const ac = j.online ?? j.status === 2;
       return {
         ts: Date.now(),
-        percent: j.percent,
+        percent: livePercent(j),
         acConnected: !!ac,
         charging: j.charging ?? [6, 7, 8, 9].includes(j.status),
         fullChargeCapacity: j.full || undefined,

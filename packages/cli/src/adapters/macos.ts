@@ -16,9 +16,8 @@ async function ioreg(): Promise<any | null> {
 /** Apple Silicon reports Current/MaxCapacity as percent; raw mAh lives in AppleRaw* keys. */
 export function parseBattery(b: any): Sample {
   const rawMax = b.AppleRawMaxCapacity ?? b.MaxCapacity;
-  const percent = b.AppleRawCurrentCapacity != null && rawMax
-    ? Math.round((b.AppleRawCurrentCapacity / rawMax) * 100)
-    : b.MaxCapacity > 100 ? Math.round((b.CurrentCapacity / b.MaxCapacity) * 100) : b.CurrentCapacity;
+  // Use what the menu bar shows: CurrentCapacity is already a percent when MaxCapacity is 100.
+  const percent = b.MaxCapacity > 100 ? Math.round((b.CurrentCapacity / b.MaxCapacity) * 100) : b.CurrentCapacity;
   return {
     ts: Date.now(),
     percent: Math.max(0, Math.min(100, percent)),

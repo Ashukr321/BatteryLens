@@ -3,12 +3,14 @@ import { BatteryLevelChart, DeviceCard, HealthGauge, LiveCard, TodayDonut } from
 export default function OverviewPage() {
   return (
     <div className="grid gap-4">
-      <div className="grid gap-4 lg:grid-cols-3">
+      <div className="grid gap-4 @xl:grid-cols-2 @5xl:grid-cols-3">
         <LiveCard />
         <HealthGauge />
-        <TodayDonut />
+        <div className="grid @xl:col-span-2 @5xl:col-span-1">
+          <TodayDonut />
+        </div>
       </div>
-      <div className="grid gap-4 lg:grid-cols-[2fr_1fr]">
+      <div className="grid gap-4 @4xl:grid-cols-[2fr_1fr]">
         <BatteryLevelChart />
         <DeviceCard />
       </div>

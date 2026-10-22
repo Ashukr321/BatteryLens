@@ -18,6 +18,7 @@ import {
   SidebarMenuItem,
   SidebarRail,
   SidebarTrigger,
+  useSidebar,
 } from "@/components/ui/sidebar";
 
 const NAV = [
@@ -40,6 +41,7 @@ const isActive = (pathname: string, href: string) => (href === "/" ? pathname ==
 export function AppSidebar() {
   const pathname = usePathname();
   const { setTheme } = useTheme();
+  const { setOpenMobile } = useSidebar();
 
   return (
     <Sidebar collapsible="icon" className="print:hidden">
@@ -66,7 +68,7 @@ export function AppSidebar() {
             <SidebarMenu>
               {NAV.map(({ href, label, icon: Icon }) => (
                 <SidebarMenuItem key={href}>
-                  <SidebarMenuButton isActive={isActive(pathname, href)} tooltip={label} render={<Link href={href} />}>
+                  <SidebarMenuButton isActive={isActive(pathname, href)} tooltip={label} render={<Link href={href} />} onClick={() => setOpenMobile(false)}>
                     <Icon />
                     <span>{label}</span>
                   </SidebarMenuButton>

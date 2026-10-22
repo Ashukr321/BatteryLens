@@ -26,7 +26,7 @@ const config = {
 export function RangeTabs({ range, onRange, month, onMonth }: { range: Range; onRange: (r: Range) => void; month: string; onMonth: (m: string) => void }) {
   return (
     <div className="flex flex-wrap items-center gap-2 print:hidden">
-      <Tabs value={range} onValueChange={(v) => onRange(v as Range)}>
+      <Tabs value={range} onValueChange={(v) => onRange(v as Range)} className="max-w-full overflow-x-auto">
         <TabsList>
           {RANGES.map((r) => (
             <TabsTrigger key={r.value} value={r.value}>
@@ -53,7 +53,7 @@ export function UsageSection({ initialRange = "7d", controls = true }: { initial
         <StatusLine error={error} />
       ) : (
         <>
-          <div className="grid gap-4 sm:grid-cols-3">
+          <div className="grid gap-4 @xl:grid-cols-3">
             <Total title="On charger" hours={u.totals.plugged} color="var(--plug)" />
             <Total title="On battery" hours={u.totals.battery} color="var(--batt)" />
             <Total title="Sleep / off / no data" hours={u.totals.off} color="var(--off)" />
@@ -67,7 +67,7 @@ export function UsageSection({ initialRange = "7d", controls = true }: { initial
               {u.totals.plugged + u.totals.battery === 0 ? (
                 <EmptyState />
               ) : (
-                <ChartContainer config={config} className="h-72 w-full">
+                <ChartContainer config={config} className="h-60 w-full @3xl:h-80">
                   {/* Sleep/off is left out of the chart (it dwarfs active time); it's in the totals above. */}
                   <AreaChart data={u.rows} margin={{ left: -20, right: 8, top: 8 }}>
                     <defs>

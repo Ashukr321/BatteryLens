@@ -23,8 +23,8 @@ export function CyclesSection({ maxSessions }: { maxSessions?: number }) {
 
   return (
     <div className="grid gap-4">
-      <div className="grid gap-4 md:grid-cols-[2fr_1fr_1fr_1fr]">
-        <Card size="sm">
+      <div className="grid grid-cols-1 gap-4 @md:grid-cols-3 @5xl:grid-cols-[2fr_1fr_1fr_1fr]">
+        <Card size="sm" className="@md:col-span-3 @5xl:col-span-1">
           <CardHeader>
             <CardDescription>OS cycle count</CardDescription>
             <CardTitle className="text-3xl tabular-nums">
@@ -55,7 +55,7 @@ export function CyclesSection({ maxSessions }: { maxSessions?: number }) {
           {c.fullChargesPerDay.length === 0 ? (
             <EmptyState />
           ) : (
-            <ChartContainer config={config} className="h-56 w-full">
+            <ChartContainer config={config} className="h-48 w-full @3xl:h-64">
               <BarChart data={c.fullChargesPerDay} margin={{ left: -24, right: 8 }}>
                 <CartesianGrid vertical={false} strokeDasharray="3 3" />
                 <XAxis dataKey="day" tickFormatter={bucketLabel} tickLine={false} axisLine={false} />

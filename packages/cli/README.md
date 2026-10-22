@@ -17,6 +17,13 @@ Opens a local dashboard at `http://127.0.0.1:4545` showing:
 
 **100% local. No cloud, no telemetry.** Data lives in `~/.batterylens` and the server listens on `127.0.0.1` only.
 
+Prefer a permanent command? Install it globally, then run `batterylens` from any terminal:
+
+```bash
+npm i -g batterylens
+batterylens
+```
+
 ## Commands
 
 | Command | What it does |

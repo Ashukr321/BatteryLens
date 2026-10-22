@@ -25,7 +25,7 @@ export function DeviceCard({ mask = false }: { mask?: boolean }) {
     [Zap, "Design capacity", `${b.designCapacity.toLocaleString()} ${b.capacityUnit}`],
   ];
   return (
-    <Card>
+    <Card className="@container/card">
       <CardHeader>
         <CardTitle>{d.computerName}</CardTitle>
         <CardDescription>Device &amp; battery</CardDescription>
@@ -34,7 +34,7 @@ export function DeviceCard({ mask = false }: { mask?: boolean }) {
         {rows.map(([Icon, label, value]) => (
           <div key={label} className="flex items-center gap-2">
             <Icon className="size-4 text-muted-foreground" />
-            <span className="w-32 shrink-0 text-muted-foreground">{label}</span>
+            <span className="w-24 shrink-0 text-muted-foreground @[22rem]/card:w-32">{label}</span>
             <span className="truncate font-medium">{value}</span>
           </div>
         ))}
@@ -72,18 +72,18 @@ export function HealthGauge() {
 }
 
 export function LiveCard() {
-  const { data: s, error } = useApi<Sample>("/api/live", 30_000);
+  const { data: s, error } = useApi<Sample>("/api/live", 5_000);
   if (!s) return <StatusLine error={error} />;
   const state = s.charging ? "Charging" : s.acConnected ? "Plugged in" : "On battery";
   return (
-    <Card>
+    <Card className="@container/card">
       <CardHeader>
         <CardTitle>Live</CardTitle>
         <CardDescription>Updated {fmtTime(s.ts)}</CardDescription>
       </CardHeader>
       <CardContent className="grid gap-4">
-        <div className="flex items-end gap-3">
-          <span className="text-5xl font-bold tabular-nums">{s.percent}%</span>
+        <div className="flex flex-wrap items-end gap-3">
+          <span className="text-4xl font-bold tabular-nums @[20rem]/card:text-5xl">{s.percent}%</span>
           <Badge variant={s.acConnected ? "default" : "secondary"} className="mb-2">
             {s.charging ? <BatteryCharging className="animate-pulse" /> : s.acConnected ? <PlugZap /> : <BatteryFull />} {state}
           </Badge>
@@ -91,7 +91,7 @@ export function LiveCard() {
         <div className="h-3 overflow-hidden rounded-full bg-muted">
           <div className="h-full rounded-full transition-all" style={{ width: `${s.percent}%`, background: s.percent < 20 ? "var(--bad)" : "var(--batt)" }} />
         </div>
-        <div className="grid grid-cols-3 gap-2 text-sm">
+        <div className="grid grid-cols-2 gap-2 text-sm @[20rem]/card:grid-cols-3">
           <Stat icon={Thermometer} label="Temp" value={s.temperatureC != null ? `${s.temperatureC.toFixed(1)}°C` : "—"} />
           <Stat icon={Zap} label="Voltage" value={s.voltageMv ? `${(s.voltageMv / 1000).toFixed(2)} V` : "—"} />
           <Stat icon={PlugZap} label="Adapter" value={s.adapterWatts ? `${s.adapterWatts} W` : "—"} />
@@ -145,7 +145,7 @@ export function BatteryLevelChart() {
         {data.length === 0 ? (
           <EmptyState />
         ) : (
-          <ChartContainer config={levelConfig} className="h-64 w-full">
+          <ChartContainer config={levelConfig} className="h-56 w-full @3xl:h-72">
             <AreaChart data={points} margin={{ left: -20, right: 8, top: 8 }}>
               <defs>
                 <Gradient id="fill-level" color="var(--color-percent)" />

@@ -32,7 +32,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
               <AppSidebar />
               <SidebarInset>
                 <PageBar />
-                <div className="mx-auto w-full max-w-6xl flex-1 px-4 py-6">{children}</div>
+                <div className="@container mx-auto w-full max-w-[1600px] flex-1 px-3 py-4 sm:px-6 sm:py-6">{children}</div>
               </SidebarInset>
             </SidebarProvider>
           </TooltipProvider>

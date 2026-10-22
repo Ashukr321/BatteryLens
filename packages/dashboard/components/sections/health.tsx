@@ -46,7 +46,7 @@ export function HealthSection({ controls = true }: { controls?: boolean }) {
         <StatusLine error={error} />
       ) : (
         <>
-          <div className="grid gap-4 sm:grid-cols-3">
+          <div className="grid gap-4 @xl:grid-cols-3">
             <Card size="sm">
               <CardHeader>
                 <CardDescription>Current health</CardDescription>
@@ -78,7 +78,7 @@ export function HealthSection({ controls = true }: { controls?: boolean }) {
               {series.length === 0 ? (
                 <EmptyState />
               ) : (
-                <ChartContainer config={healthConfig} className="h-64 w-full">
+                <ChartContainer config={healthConfig} className="h-56 w-full @3xl:h-72">
                   <ComposedChart data={series} margin={{ left: -20, right: 8, top: 8 }}>
                     <defs>
                       <Gradient id="fill-health" color="var(--color-health)" />
@@ -105,7 +105,7 @@ export function HealthSection({ controls = true }: { controls?: boolean }) {
               {h.series.length === 0 ? (
                 <EmptyState />
               ) : (
-                <ChartContainer config={capConfig} className="h-64 w-full">
+                <ChartContainer config={capConfig} className="h-56 w-full @3xl:h-72">
                   <ComposedChart data={h.series} margin={{ left: 0, right: 8, top: 8 }}>
                     <defs>
                       <Gradient id="fill-capacity" color="var(--color-fullChargeCapacity)" />
