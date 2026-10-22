@@ -2,11 +2,23 @@
 
 > One command. Full battery story. Windows + macOS.
 
+## Install & run
+
+No install needed. Run it with **npx** (comes with Node.js 20+):
+
 ```bash
 npx batterylens
 ```
 
-Opens a local dashboard at `http://127.0.0.1:4545` showing:
+> ⚠️ Don't use `npm i batterylens`. That only adds the package to the current folder's `node_modules`, so the `batterylens` command won't be found. Use `npx batterylens`, or install globally with `npm i -g batterylens` (see below).
+
+To keep recording battery history in the background (starts at login, no admin needed):
+
+```bash
+npx batterylens install
+```
+
+It opens a local dashboard at `http://127.0.0.1:4545` showing:
 
 - **Battery health**: current vs design capacity, 24h / 30-day trend and a forecast of when it reaches 80%
 - **Charger vs battery time**: 24h / 7d / 14d / 30d / monthly, a calendar heatmap, and a per-day detail drawer
@@ -24,7 +36,7 @@ Opens a local dashboard at `http://127.0.0.1:4545` showing:
 
 **100% local. No cloud, no telemetry.** Data lives in `~/.batterylens` and the server listens on `127.0.0.1` only.
 
-Prefer a permanent command? Install it globally, then run `batterylens` from any terminal:
+Prefer a permanent command? Install it **globally** (note the `-g`), then run `batterylens` from any terminal:
 
 ```bash
 npm i -g batterylens
