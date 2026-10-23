@@ -43,6 +43,18 @@ A single run shows the live state plus whatever history the OS already kept (Win
 
 ---
 
+## Screenshots
+
+| Overview | Usage |
+|---|---|
+| ![Overview: live battery %, health gauge, 24h charger vs battery donut](resources/images/1.png) | ![Usage: charger vs battery hours per day with screen-on line](resources/images/2.png) |
+| **Health** | **Cycles** |
+| ![Health: current health, trend, habit score and health-over-time forecast](resources/images/3.png) | ![Cycles: OS cycle count, full charges per day](resources/images/4.png) |
+| **Charge sessions** | **Settings** |
+| ![Charge sessions: sortable table of plug-in to unplug sessions](resources/images/5.png) | ![Settings: smart alerts, stored data, CSV/JSON export](resources/images/6.png) |
+
+---
+
 ## Features
 
 ### 📊 Dashboard

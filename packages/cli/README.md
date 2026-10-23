@@ -43,6 +43,16 @@ It opens a local dashboard at `http://127.0.0.1:4545` showing:
 
 **100% local. No cloud, no telemetry.** Data lives in `~/.batterylens` and the server listens on `127.0.0.1` only.
 
+## Screenshots
+
+| Overview | Usage |
+|---|---|
+| ![Overview: live battery %, health gauge, 24h charger vs battery donut](https://raw.githubusercontent.com/Ashukr321/BatteryLens/main/resources/images/1.png) | ![Usage: charger vs battery hours per day with screen-on line](https://raw.githubusercontent.com/Ashukr321/BatteryLens/main/resources/images/2.png) |
+| **Health** | **Cycles** |
+| ![Health: current health, trend, habit score and health-over-time forecast](https://raw.githubusercontent.com/Ashukr321/BatteryLens/main/resources/images/3.png) | ![Cycles: OS cycle count, full charges per day](https://raw.githubusercontent.com/Ashukr321/BatteryLens/main/resources/images/4.png) |
+| **Charge sessions** | **Settings** |
+| ![Charge sessions: sortable table of plug-in to unplug sessions](https://raw.githubusercontent.com/Ashukr321/BatteryLens/main/resources/images/5.png) | ![Settings: smart alerts, stored data, CSV/JSON export](https://raw.githubusercontent.com/Ashukr321/BatteryLens/main/resources/images/6.png) |
+
 ## Commands
 
 | Command | What it does |
